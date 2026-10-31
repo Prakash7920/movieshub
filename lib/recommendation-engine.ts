@@ -1,120 +1,186 @@
-export type Language = "en" | "ta";
+import { PrismaClient } from "@prisma/client";
+import { z } from "zod";
 
-export const languageLabels: Record<Language, string> = {
-  en: "English",
-  ta: "தமிழ்",
+const prisma = new PrismaClient();
+
+export type RecommendationSignal = {
+  name: string;
+  count: number;
 };
 
-export type TranslationSet = {
-  brand: string;
-  tagline: string;
-  login: string;
-  subscribe: string;
-  search: string;
-  home: string;
-  movies: string;
-  categories: string;
-  library: string;
-  dashboard: string;
-  admin: string;
-  assistant: string;
-  watchNow: string;
-  viewDetails: string;
-  continueWatching: string;
-  trending: string;
-  newReleases: string;
-  tamilMovies: string;
-  dubbedMovies: string;
-  recommended: string;
-  footerLegal: string;
-  privacy: string;
-  terms: string;
-  copyright: string;
-  report: string;
-  social: string;
-  free: string;
-  premium: string;
-  profile: string;
-  logout: string;
-  searchPlaceholder: string;
-  language: string;
-  discover: string;
-  browse: string;
+export type RecommendationMovie = {
+  id: string;
+  slug: string;
+  title: string;
+  titleTa: string;
+  posterUrl: string;
+  backdropUrl: string;
+  rating: number;
+  score: number;
+  reason: string;
+  movieType: string;
+  genre: string;
+  releaseYear: number;
 };
 
-export const translations: Record<Language, TranslationSet> = {
-  en: {
-    brand: "MoviesHub",
-    tagline: "Your world of Tamil cinema",
-    login: "Login",
-    subscribe: "Subscribe",
-    search: "Search",
-    home: "Home",
-    movies: "Movies",
-    categories: "Categories",
-    library: "Library",
-    dashboard: "Dashboard",
-    admin: "Admin",
-    assistant: "AI Assistant",
-    watchNow: "Watch Now",
-    viewDetails: "View Details",
-    continueWatching: "Continue Watching",
-    trending: "Trending Movies",
-    newReleases: "New Releases",
-    tamilMovies: "Tamil Movies",
-    dubbedMovies: "Dubbed Movies",
-    recommended: "Recommended For You",
-    footerLegal: "Legal",
-    privacy: "Privacy Policy",
-    terms: "Terms of Service",
-    copyright: "Copyright Policy",
-    report: "Content Report",
-    social: "Social",
-    free: "Free",
-    premium: "Premium",
-    profile: "Profile",
-    logout: "Logout",
-    searchPlaceholder: "Search titles, genres, actors...",
-    language: "Language",
-    discover: "Discover",
-    browse: "Browse",
-  },
-  ta: {
-    brand: "மூவிஹப்",
-    tagline: "உங்கள் தமிழ்சினிமா உலகம்",
-    login: "உள்நுழை",
-    subscribe: "சந்தா",
-    search: "தேடு",
-    home: "முகப்பு",
-    movies: "திரைப்படங்கள்",
-    categories: "வகைகள்",
-    library: "நூலகம்",
-    dashboard: "டாஷ்போர்டு",
-    admin: "நிர்வாகம்",
-    assistant: "ஏஐ உதவியாளர்",
-    watchNow: "இப்போது பார்க்கவும்",
-    viewDetails: "விவரங்களைப் பார்க்க",
-    continueWatching: "தொடர்ந்து பார்க்கப்படுகிறது",
-    trending: "ட்ரெண்டிங்",
-    newReleases: "புதிய வெளியீடுகள்",
-    tamilMovies: "தமிழ் திரைப்படங்கள்",
-    dubbedMovies: "டப் செய்யப்பட்ட திரைப்படங்கள்",
-    recommended: "உங்களுக்காக பரிந்துரைக்கப்படுகிறது",
-    footerLegal: "சட்டம்",
-    privacy: "தனியுரிமைக் கொள்கை",
-    terms: "சேவை விதிமுறைகள்",
-    copyright: "பதிப்புரிமை கொள்கை",
-    report: "உள்ளடக்க அறிக்கை",
-    social: "சமூகம்",
-    free: "இலவசம்",
-    premium: "பிரீமியம்",
-    profile: "சுயவிவரம்",
-    logout: "வெளியேறு",
-    searchPlaceholder: "திரைப்படங்கள், வகைகள், நடிகர்கள்...",
-    language: "மொழி",
-    discover: "கண்டறியவும்",
-    browse: "உலவுக",
-  },
+export type RecommendationAssistantResult = {
+  userName: string;
+  preferredLanguage: "en" | "ta";
+  subscription: "FREE" | "PREMIUM" | string;
+  watchCount: number;
+  recommendations: RecommendationMovie[];
+  signals: RecommendationSignal[];
+  error?: string;
 };
 
-export const getTranslations = (language: Language) => translations[language];
+const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email({ message: "Please provide a valid email address." })
+  .max(254, "Email address is too long.");
+
+export function validateUserEmail(input: string | null | undefined): string | null {
+  if (!input || typeof input !== "string") {
+    return null;
+  }
+
+  const sanitized = input.trim();
+  const result = emailSchema.safeParse(sanitized);
+  return result.success ? result.data : null;
+}
+
+function buildFallbackResult(error?: string): RecommendationAssistantResult {
+  return {
+    userName: "Viewer",
+    preferredLanguage: "ta",
+    subscription: "FREE",
+    watchCount: 0,
+    recommendations: [],
+    signals: [],
+    error,
+  };
+}
+
+export async function getRecommendationAssistantData(
+  userEmail = "premium@movieshub.local",
+): Promise<RecommendationAssistantResult> {
+  const safeEmail = validateUserEmail(userEmail);
+
+  if (!safeEmail) {
+    return buildFallbackResult("A valid user email is required to generate recommendations.");
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: safeEmail },
+      include: {
+        profiles: true,
+        subscriptions: {
+          orderBy: { startDate: "desc" },
+          take: 1,
+        },
+        watchHistory: {
+          orderBy: { lastWatchedAt: "desc" },
+          take: 10,
+          include: {
+            movie: {
+              include: {
+                genres: {
+                  include: { genre: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return buildFallbackResult("No matching user profile was found for the recommendation engine.");
+    }
+
+    const preferredLanguage = (user.profiles[0]?.languagePreference === "en" ? "en" : "ta") as "en" | "ta";
+    const activeSubscription = user.subscriptions[0]?.plan ?? "FREE";
+    const watchedHistory = user.watchHistory ?? [];
+
+    const genreCounts = new Map<string, number>();
+    for (const item of watchedHistory) {
+      for (const movieGenre of item.movie.genres) {
+        const currentCount = genreCounts.get(movieGenre.genre.name) ?? 0;
+        genreCounts.set(movieGenre.genre.name, currentCount + 1);
+      }
+    }
+
+    const topSignals: RecommendationSignal[] = Array.from(genreCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, count]) => ({ name, count }));
+
+    const watchedIds = new Set(watchedHistory.map((item) => item.movieId));
+
+    const candidateMovies = await prisma.movie.findMany({
+      where: { isPublished: true },
+      include: {
+        genres: {
+          include: { genre: true },
+        },
+      },
+      orderBy: { rating: "desc" },
+      take: 30,
+    });
+
+    const recommendations = candidateMovies
+      .filter((movie) => !watchedIds.has(movie.id))
+      .map((movie) => {
+        const genreNames = movie.genres.map((entry) => entry.genre.name);
+        const matchedGenres = genreNames.filter((genreName) => genreCounts.has(genreName));
+        const languageBonus = movie.language === preferredLanguage ? 10 : 0;
+        const premiumBias = activeSubscription === "PREMIUM" && movie.movieType === "PREMIUM" ? 8 : 0;
+        const freeBias = activeSubscription !== "PREMIUM" && movie.movieType === "FREE" ? 6 : 0;
+        const genreBoost = matchedGenres.length * 12;
+        const popularityBoost = Math.min(movie.watchCount / 10000, 12);
+        const score =
+          movie.rating * 10 +
+          genreBoost +
+          languageBonus +
+          premiumBias +
+          freeBias +
+          popularityBoost +
+          (movie.isFeatured ? 5 : 0);
+
+        const reason = matchedGenres.length
+          ? `Your recent picks lean toward ${matchedGenres[0]} stories, and this title matches that mood.`
+          : `Recent preference for ${preferredLanguage === "ta" ? "Tamil" : "English"} cinema makes this a strong match.`;
+
+        return {
+          id: movie.id,
+          slug: movie.slug,
+          title: movie.titleEn,
+          titleTa: movie.titleTa,
+          posterUrl: movie.posterUrl,
+          backdropUrl: movie.backdropUrl,
+          rating: Number(movie.rating.toFixed(1)),
+          score: Number(score.toFixed(1)),
+          reason,
+          movieType: movie.movieType,
+          genre: genreNames[0] ?? "Drama",
+          releaseYear: movie.releaseYear,
+        } satisfies RecommendationMovie;
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6);
+
+    return {
+      userName: user.name ?? "Viewer",
+      preferredLanguage,
+      subscription: activeSubscription,
+      watchCount: watchedHistory.length,
+      recommendations,
+      signals: topSignals,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "An unexpected database error occurred.";
+    return buildFallbackResult(`Recommendation engine is temporarily unavailable: ${message}`);
+  }
+}
