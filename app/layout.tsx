@@ -7,7 +7,7 @@ import { LanguageProvider } from "@/components/providers/language-provider";
 export const metadata: Metadata = {
   title: "MoviesHub | Your world of Tamil cinema",
   description: "Legal OTT platform for Tamil and dubbed movies.",
-  metadataBase: new URL("https://example.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
