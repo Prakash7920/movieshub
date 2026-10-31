@@ -1,16 +1,7 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { ClassValue } from "clsx";
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
-export const metadata: Metadata = {
-  title: "MoviesHub | Your world of Tamil cinema",
-  description: "Legal OTT platform for Tamil and dubbed movies.",
-  metadataBase: new URL("https://example.com")
-};
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }
