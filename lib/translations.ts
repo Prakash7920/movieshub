@@ -1,117 +1,55 @@
-export type Language = "en" | "ta";
+import Link from "next/link";
+import { Film, Home, LayoutDashboard, ShieldCheck, Sparkles } from "lucide-react";
+import { LanguageSwitcher } from "@/components/layout/footer";
+import { useLanguage } from "@/components/providers/language-provider";
 
-export const languageLabels: Record<Language, string> = {
-  en: "English",
-  ta: "தமிழ்",
-};
+const navItems = [
+  { href: "/", labelKey: "home", icon: Home },
+  { href: "/movies", labelKey: "movies", icon: Film },
+  { href: "/dashboard", labelKey: "dashboard", icon: LayoutDashboard },
+  { href: "/assistant", labelKey: "assistant", icon: Sparkles },
+  { href: "/admin", labelKey: "admin", icon: ShieldCheck },
+] as const;
 
-export type TranslationSet = {
-  brand: string;
-  tagline: string;
-  login: string;
-  subscribe: string;
-  search: string;
-  home: string;
-  movies: string;
-  categories: string;
-  library: string;
-  dashboard: string;
-  admin: string;
-  watchNow: string;
-  viewDetails: string;
-  continueWatching: string;
-  trending: string;
-  newReleases: string;
-  tamilMovies: string;
-  dubbedMovies: string;
-  recommended: string;
-  footerLegal: string;
-  privacy: string;
-  terms: string;
-  copyright: string;
-  report: string;
-  social: string;
-  free: string;
-  premium: string;
-  profile: string;
-  logout: string;
-  searchPlaceholder: string;
-  language: string;
-  discover: string;
-  browse: string;
-};
+export function Navbar() {
+  const { t } = useLanguage();
 
-export const translations: Record<Language, TranslationSet> = {
-  en: {
-    brand: "MoviesHub",
-    tagline: "Your world of Tamil cinema",
-    login: "Login",
-    subscribe: "Subscribe",
-    search: "Search",
-    home: "Home",
-    movies: "Movies",
-    categories: "Categories",
-    library: "Library",
-    dashboard: "Dashboard",
-    admin: "Admin",
-    watchNow: "Watch Now",
-    viewDetails: "View Details",
-    continueWatching: "Continue Watching",
-    trending: "Trending Movies",
-    newReleases: "New Releases",
-    tamilMovies: "Tamil Movies",
-    dubbedMovies: "Dubbed Movies",
-    recommended: "Recommended For You",
-    footerLegal: "Legal",
-    privacy: "Privacy Policy",
-    terms: "Terms of Service",
-    copyright: "Copyright Policy",
-    report: "Content Report",
-    social: "Social",
-    free: "Free",
-    premium: "Premium",
-    profile: "Profile",
-    logout: "Logout",
-    searchPlaceholder: "Search titles, genres, actors...",
-    language: "Language",
-    discover: "Discover",
-    browse: "Browse",
-  },
-  ta: {
-    brand: "மூவிஹப்",
-    tagline: "உங்கள் தமிழ்சினிமா உலகம்",
-    login: "உள்நுழை",
-    subscribe: "சந்தா",
-    search: "தேடு",
-    home: "முகப்பு",
-    movies: "திரைப்படங்கள்",
-    categories: "வகைகள்",
-    library: "நூலகம்",
-    dashboard: "டாஷ்போர்டு",
-    admin: "நிர்வாகம்",
-    watchNow: "இப்போது பார்க்கவும்",
-    viewDetails: "விவரங்களைப் பார்க்க",
-    continueWatching: "தொடர்ந்து பார்க்கப்படுகிறது",
-    trending: "ட்ரெண்டிங்",
-    newReleases: "புதிய வெளியீடுகள்",
-    tamilMovies: "தமிழ் திரைப்படங்கள்",
-    dubbedMovies: "டப் செய்யப்பட்ட திரைப்படங்கள்",
-    recommended: "உங்களுக்காக பரிந்துரைக்கப்படுகிறது",
-    footerLegal: "சட்டம்",
-    privacy: "தனியுரிமைக் கொள்கை",
-    terms: "சேவை விதிமுறைகள்",
-    copyright: "பதிப்புரிமை கொள்கை",
-    report: "உள்ளடக்க அறிக்கை",
-    social: "சமூகம்",
-    free: "இலவசம்",
-    premium: "பிரீமியம்",
-    profile: "சுயவிவரம்",
-    logout: "வெளியேறு",
-    searchPlaceholder: "திரைப்படங்கள், வகைகள், நடிகர்கள்...",
-    language: "மொழி",
-    discover: "கண்டறியவும்",
-    browse: "உலவுக",
-  },
-};
+  return (
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-black/60 backdrop-blur-xl">
+      <div className="page-shell flex items-center justify-between gap-4 py-4">
+        <Link href="/" className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 font-bold text-white">
+            M
+          </div>
+          <div>
+            <div className="text-base font-semibold text-white">{t.brand}</div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-gray-400">{t.tagline}</div>
+          </div>
+        </Link>
 
-export const getTranslations = (language: Language) => translations[language];
+        <nav className="hidden items-center gap-2 md:flex">
+          {navItems.map(({ href, labelKey, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white"
+            >
+              <Icon className="h-4 w-4" />
+              {t[labelKey]}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher />
+          <Link
+            href="/auth/login"
+            className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:border-red-500/50 hover:text-red-200"
+          >
+            {t.login}
+          </Link>
+        </div>
+      </div>
+    </header>
+  );
+}
