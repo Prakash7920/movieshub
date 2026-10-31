@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #f9fafb;
+  --muted-foreground: #9ca3af;
+  --card: #111827;
+  --primary: #dc2626;
+  --accent: #d4af37;
+  --border: rgba(255, 255, 255, 0.08);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  color: var(--foreground);
+  background:
+    radial-gradient(circle at top, rgba(220, 38, 38, 0.2), transparent 25%),
+    linear-gradient(180deg, #040404 0%, #0a0a0a 100%);
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: rgba(212, 175, 55, 0.3);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.card-glow {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 15px 45px rgba(220, 38, 38, 0.18);
+}
+
+.page-shell {
+  @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+}
+
+.section-title {
+  @apply text-2xl font-semibold tracking-tight text-white md:text-3xl;
+}
+
+.subtle-text {
+  @apply text-sm text-gray-400;
+}
