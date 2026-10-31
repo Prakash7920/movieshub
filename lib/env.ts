@@ -1,11 +1,6 @@
 import { z } from "zod";
 
-const baseEnvSchema = z.object({
-  DATABASE_URL: z
-    .string()
-    .url()
-    .optional()
-    .default("postgresql://postgres:postgres@localhost:5432/movieshub"),
+const baseEnvSchema = z.object
   NEXTAUTH_SECRET: z
     .string()
     .min(32)
