@@ -12,6 +12,19 @@ import { getPublicAppUrl, sendTransactionalEmail } from "@/lib/email/resend";
 
 export const runtime = "nodejs";
 
+function isEmailUniqueConflict(error: Prisma.PrismaClientKnownRequestError): boolean {
+  const target = error.meta?.target;
+  if (Array.isArray(target)) {
+    return target.some((field) => String(field).toLowerCase() === "email");
+  }
+  if (typeof target === "string" && target.toLowerCase().includes("email")) {
+    return true;
+  }
+
+  const constraint = error.meta?.constraint;
+  return typeof constraint === "string" && constraint.toLowerCase().includes("email");
+}
+
 export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) {
     return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
@@ -91,8 +104,8 @@ export async function POST(request: Request) {
       const verificationUrl = `${appUrl}/auth/verify-email#token=${oneTimeToken.token}`;
       const delivery = await sendTransactionalEmail({
         to: normalizedEmail,
-        subject: "Verify your MoviesHub email",
-        html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111"><h2>Verify your MoviesHub email</h2><p>Confirm your email address to complete your account setup.</p><p><a href="${verificationUrl}" style="display:inline-block;padding:12px 20px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px">Verify email</a></p><p>This link expires in 24 hours and can be used only once. If you did not create this account, you can ignore this email.</p></div>`,
+        subject: "Verify your NexaFilm email",
+        html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111"><h2>Welcome to NexaFilm</h2><p>Confirm your email address to complete your account setup.</p><p><a href="${verificationUrl}" style="display:inline-block;padding:12px 20px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px">Verify email</a></p><p>This link expires in 24 hours and can be used only once. If you did not create this account, you can ignore this email.</p><p style="color:#666;font-size:12px">NexaFilm · One Platform. Every Language. Endless Stories.</p></div>`,
       });
       verificationSent = delivery.sent;
       if (!delivery.sent) {
@@ -110,7 +123,11 @@ export async function POST(request: Request) {
       { status: 201, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002" &&
+      isEmailUniqueConflict(error)
+    ) {
       return NextResponse.json(
         { error: "An account with this email already exists." },
         { status: 409 },
