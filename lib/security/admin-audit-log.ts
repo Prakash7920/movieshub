@@ -1,8 +1,8 @@
 import { Prisma } from "@prisma/client";
 
-// Accepts a Prisma transaction client so the audit event can commit atomically
-// with the administrative mutation. Do not put secrets, tokens, or user PII in metadata.
-type AuditClient = Pick<Prisma.TransactionClient, "adminAuditLog">;
+// Pass a Prisma transaction client so audit persistence can share the
+// transaction with the privileged mutation. Metadata must remain non-sensitive.
+type AuditClient = Prisma.TransactionClient;
 
 export async function writeAdminAuditEvent(
   client: AuditClient,
@@ -14,13 +14,21 @@ export async function writeAdminAuditEvent(
     metadata?: Prisma.InputJsonObject;
   },
 ): Promise<void> {
+  const actor = await client.user.findUnique({
+    where: { id: input.actorUserId },
+    select: { email: true },
+  });
+  if (!actor) throw new Error("ADMIN_AUDIT_ACTOR_NOT_FOUND");
+
   await client.adminAuditLog.create({
     data: {
       actorUserId: input.actorUserId,
+      actorEmail: actor.email,
       action: input.action,
       resourceType: input.resourceType,
       resourceId: input.resourceId ?? null,
       metadata: input.metadata,
     },
+    select: { id: true },
   });
 }
