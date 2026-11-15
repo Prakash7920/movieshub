@@ -394,14 +394,15 @@ model Session {
 
 model AdminAuditLog {
   id           String   @id @default(cuid())
-  actorUserId  String
+  actorUserId  String?
+  actorEmail   String
   action       String
-  resourceType String
-  resourceId   String?
+  resourceType String   @map("targetType")
+  resourceId   String?  @map("targetId")
   metadata     Json?
   createdAt    DateTime @default(now())
 
   @@index([actorUserId, createdAt])
-  @@index([resourceType, resourceId, createdAt])
-  @@index([createdAt])
+  @@index([resourceType, resourceId, createdAt], map: "AdminAuditLog_targetType_targetId_createdAt_idx")
+  @@index([action, createdAt])
 }
