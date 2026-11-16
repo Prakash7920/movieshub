@@ -103,3 +103,32 @@ test("session revocation IDs are stable and prefer the JWT identifier", () => {
   assert.notEqual(first, different);
   assert.equal(getSessionRevocationId({ sub: "user-1" }), null);
 });
+
+
+test("same-origin guard rejects malformed sources and does not fall back from a supplied foreign origin", () => {
+  const requestUrl = "https://movieshub.example/api/admin/movies";
+  assert.equal(isSameOriginRequest(new Request(requestUrl, {
+    method: "POST",
+    headers: { origin: "not a URL", referer: "https://movieshub.example/admin" },
+  })), false);
+  assert.equal(isSameOriginRequest(new Request(requestUrl, {
+    method: "POST",
+    headers: { origin: "https://attacker.example", referer: "https://movieshub.example/admin" },
+  })), false);
+  assert.equal(isSameOriginRequest(new Request(requestUrl, {
+    method: "POST",
+    headers: { referer: "https://movieshub.example.evil.example/admin" },
+  })), false);
+});
+
+test("JSON guard rejects invalid, negative and oversized declared content lengths", async () => {
+  const makeRequest = (contentLength: string) => new Request("https://movieshub.example/api", {
+    method: "POST",
+    headers: { "content-type": "application/json", "content-length": contentLength },
+    body: "{}",
+  });
+  assert.equal(await hasValidJsonContentType(makeRequest("not-a-number")), false);
+  assert.equal(await hasValidJsonContentType(makeRequest("-1")), false);
+  assert.equal(await hasValidJsonContentType(makeRequest("16385")), false);
+  assert.equal(await hasValidJsonContentType(makeRequest("2")), true);
+});
