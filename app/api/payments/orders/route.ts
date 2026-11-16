@@ -31,6 +31,7 @@ export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid checkout request." }, { status: 400 });
 
+  let createdPaymentId: string | null = null;
   try {
     const limit = await consumeRateLimit("payment-order", userId, 5, 15 * 60);
     if (!limit.allowed) return NextResponse.json({ error: "Too many checkout attempts. Try again later." }, { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds), "Cache-Control": "no-store" } });
@@ -50,11 +51,16 @@ export async function POST(request: Request) {
       data: { userId, amount, currency: "INR", provider: "razorpay", status: "PENDING", plan: "PREMIUM", billingCycle, requestKey: idempotencyKey },
       select: { id: true, amount: true, currency: true },
     });
+    createdPaymentId = payment.id;
     const order = await createRazorpayOrder({ paymentId: payment.id, amountPaise: Math.round(payment.amount * 100), userId });
     await prisma.payment.update({ where: { id: payment.id }, data: { razorpayOrderId: order.id } });
     return NextResponse.json({ paymentId: payment.id, orderId: order.id, amount: order.amount, currency: order.currency, keyId: process.env.RAZORPAY_KEY_ID }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return NextResponse.json({ error: "Checkout request is already being processed. Retry with the same key." }, { status: 409, headers: { "Retry-After": "3", "Cache-Control": "no-store" } });
+    if (createdPaymentId) {
+      try { await prisma.payment.update({ where: { id: createdPaymentId }, data: { status: "FAILED" } }); }
+      catch (updateError) { logSafeError("Failed to mark incomplete Razorpay order as failed", updateError); }
+    }
     logSafeError("Razorpay order creation failed", error);
     return NextResponse.json({ error: "Checkout is temporarily unavailable." }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
