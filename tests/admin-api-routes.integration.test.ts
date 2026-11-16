@@ -125,3 +125,39 @@ test("admin movie POST creates a draft and its audit event through the real rout
   assert.ok(audit, "successful admin route must persist the matching audit event");
   assert.equal(audit.actorEmail, `route-admin-${suffix}@example.invalid`);
 });
+
+
+test("admin movie POST rejects cross-origin, non-JSON and oversized requests before authorization", async () => {
+  const origin = "https://admin-route-test.example";
+  const body = JSON.stringify({ slug });
+  const crossOrigin = new Request("https://admin-route-test.example/api/admin/movies", {
+    method: "POST",
+    headers: { origin: "https://attacker.example", "content-type": "application/json" },
+    body,
+  });
+  const wrongContentType = new Request("https://admin-route-test.example/api/admin/movies", {
+    method: "POST",
+    headers: { origin, "content-type": "text/plain" },
+    body,
+  });
+  const oversized = new Request("https://admin-route-test.example/api/admin/movies", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", "content-length": "32769" },
+    body,
+  });
+
+  const crossOriginResponse = await createAdminMovie(crossOrigin);
+  assert.equal(crossOriginResponse.status, 403, await crossOriginResponse.clone().text());
+  assert.equal(crossOriginResponse.headers.get("cache-control"), "no-store");
+
+  const wrongTypeResponse = await createAdminMovie(wrongContentType);
+  assert.equal(wrongTypeResponse.status, 415, await wrongTypeResponse.clone().text());
+
+  const oversizedResponse = await createAdminMovie(oversized);
+  assert.equal(oversizedResponse.status, 415, await oversizedResponse.clone().text());
+
+  assert.equal(await prismaTest.movie.count({ where: { slug } }), 0);
+  assert.equal(await prismaTest.adminAuditLog.count({
+    where: { action: "MOVIE_DRAFT_CREATED", metadata: { path: ["slug"], equals: slug } },
+  }), 0);
+});
