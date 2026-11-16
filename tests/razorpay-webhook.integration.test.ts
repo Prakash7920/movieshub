@@ -71,6 +71,8 @@ test("Razorpay captured webhook atomically grants one subscription and deduplica
   const response = await razorpayWebhook(webhookRequest(eventIds[0], "payment.captured", entity));
   assert.equal(response.status, 200, await response.clone().text());
 
+  const receipt = await prisma.paymentWebhookEvent.findUnique({ where: { eventId: eventIds[0] }, select: { processingStatus: true, razorpayOrderId: true, gatewayPaymentId: true } });
+  assert.equal(receipt?.processingStatus, "PROCESSED", JSON.stringify(receipt));
   const payment = await prisma.payment.findUnique({ where: { id: paymentId! }, select: { status: true, transactionId: true, subscriptionId: true } });
   assert.equal(payment?.status, "PAID");
   assert.equal(payment?.transactionId, entity.id);
