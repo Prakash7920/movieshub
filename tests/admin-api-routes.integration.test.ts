@@ -78,12 +78,14 @@ test("admin movie POST rejects unauthenticated and non-admin sessions without mu
   const unauthenticated = await runWithAdminSessionForIntegrationTest(null, () =>
     createAdminMovie(postRequest()),
   );
+  assert.ok(unauthenticated, "unauthenticated route invocation must return a response");
   assert.equal(unauthenticated.status, 401);
 
   const nonAdmin = await runWithAdminSessionForIntegrationTest(
     { user: { id: memberId! } },
     () => createAdminMovie(postRequest()),
   );
+  assert.ok(nonAdmin, "non-admin route invocation must return a response");
   assert.equal(nonAdmin.status, 403);
 
   const movie = await prismaTest.movie.findUnique({ where: { slug }, select: { id: true } });
@@ -100,6 +102,7 @@ test("admin movie POST creates a draft and its audit event through the real rout
     { user: { id: adminId! } },
     () => createAdminMovie(postRequest()),
   );
+  assert.ok(response, "admin route invocation must return a response");
   assert.equal(response.status, 201, await response.clone().text());
 
   const movie = await prismaTest.movie.findUnique({
