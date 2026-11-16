@@ -69,9 +69,6 @@ before(async () => {
 after(async () => {
   await prismaTest.movie.deleteMany({ where: { slug } });
   await prismaTest.genre.deleteMany({ where: { slug: genreSlug } });
-  await prismaTest.adminAuditLog.deleteMany({
-    where: { resourceType: "Movie", metadata: { path: ["slug"], equals: slug } },
-  });
   if (adminId) await prismaTest.user.deleteMany({ where: { id: adminId } });
   if (memberId) await prismaTest.user.deleteMany({ where: { id: memberId } });
   await prismaTest.$disconnect();
