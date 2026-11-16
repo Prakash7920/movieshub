@@ -5,6 +5,7 @@ import { getClientIp } from "../lib/security/client-identity";
 import { hasValidJsonContentType, isSameOriginRequest } from "../lib/security/request-guards";
 import { getVercelViewerCountry } from "../lib/licensing/territory";
 import { getSessionRevocationId } from "../lib/security/session-revocation";
+import { consumeRateLimit } from "../lib/security/rate-limit";
 
 test("one-time tokens are cryptographically random, fixed-length and hashable", () => {
   const first = createOneTimeToken();
@@ -131,4 +132,27 @@ test("JSON guard rejects invalid, negative and oversized declared content length
   assert.equal(await hasValidJsonContentType(makeRequest("-1")), false);
   assert.equal(await hasValidJsonContentType(makeRequest("16385")), false);
   assert.equal(await hasValidJsonContentType(makeRequest("2")), true);
+});
+
+
+test("rate limiter rejects invalid limits and missing signing secrets before database access", async () => {
+  const previousRateLimitSecret = process.env.RATE_LIMIT_SECRET;
+  const previousNextAuthSecret = process.env.NEXTAUTH_SECRET;
+  try {
+    await assert.rejects(
+      consumeRateLimit("test", "identifier", 0, 60),
+      /Invalid rate-limit configuration/,
+    );
+    delete process.env.RATE_LIMIT_SECRET;
+    delete process.env.NEXTAUTH_SECRET;
+    await assert.rejects(
+      consumeRateLimit("test", "identifier", 1, 60),
+      /Rate-limit signing secret is not configured/,
+    );
+  } finally {
+    if (previousRateLimitSecret === undefined) delete process.env.RATE_LIMIT_SECRET;
+    else process.env.RATE_LIMIT_SECRET = previousRateLimitSecret;
+    if (previousNextAuthSecret === undefined) delete process.env.NEXTAUTH_SECRET;
+    else process.env.NEXTAUTH_SECRET = previousNextAuthSecret;
+  }
 });
