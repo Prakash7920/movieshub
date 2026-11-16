@@ -17,6 +17,31 @@ export function verifyRazorpayWebhookSignature(rawBody: Buffer, signature: strin
   return supplied.length === expected.length && timingSafeEqual(supplied, expected);
 }
 
+export function verifyRazorpayPaymentSignature(orderId: string, paymentId: string, signature: string | null, secret: string): boolean {
+  if (!signature || !/^[a-f0-9]{64}$/i.test(signature) || !orderId || !paymentId || !secret) return false;
+  const expected = createHmac("sha256", secret).update(`${orderId}|${paymentId}`, "utf8").digest();
+  const supplied = Buffer.from(signature, "hex");
+  return supplied.length === expected.length && timingSafeEqual(supplied, expected);
+}
+
+export async function fetchRazorpayPayment(paymentId: string): Promise<{ id: string; order_id: string; amount: number; currency: string; status: string }> {
+  const keyId = requiredPaymentEnv("RAZORPAY_KEY_ID");
+  const keySecret = requiredPaymentEnv("RAZORPAY_KEY_SECRET");
+  const response = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}`, {
+    headers: { Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}` },
+    signal: AbortSignal.timeout(10000),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error("Payment provider verification failed.");
+  const data: unknown = await response.json();
+  if (!data || typeof data !== "object") throw new Error("Payment provider returned an invalid payment.");
+  const payment = data as Record<string, unknown>;
+  if (typeof payment.id !== "string" || typeof payment.order_id !== "string" || typeof payment.amount !== "number" || typeof payment.currency !== "string" || typeof payment.status !== "string") {
+    throw new Error("Payment provider returned an unexpected payment.");
+  }
+  return { id: payment.id, order_id: payment.order_id, amount: payment.amount, currency: payment.currency, status: payment.status };
+}
+
 export async function createRazorpayOrder(input: { paymentId: string; amountPaise: number; userId: string }): Promise<RazorpayOrderResponse> {
   const keyId = requiredPaymentEnv("RAZORPAY_KEY_ID");
   const keySecret = requiredPaymentEnv("RAZORPAY_KEY_SECRET");
