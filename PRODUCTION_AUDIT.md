@@ -1,6 +1,6 @@
 # NexaFilm Production Readiness Audit
 
-Last reviewed: 2026-11-14
+Last reviewed: 2026-11-16
 Scope: repository source and CI evidence on `phase-5/consolidated-security-ops`. This is a code/configuration review, not proof of a live Production deployment.
 
 ## Executive summary
@@ -37,10 +37,13 @@ NexaFilm has a working Next.js application and a Phase 5 security-hardening draf
 
 ## Explicitly not implemented or not verified
 
-### Payments — intentionally disabled; no webhook route found
-- The subscription checkout UI explicitly keeps checkout disabled until authenticated order creation, gateway integration, signature verification, and webhook reconciliation exist.
-- No Razorpay/payment webhook handler was found in the reviewed repository.
-- Do not enable paid checkout or configure live payment credentials until order creation, signature verification, idempotent webhook processing, reconciliation, and negative-path tests are implemented and reviewed.
+### Payments — Razorpay foundation added; checkout remains intentionally disabled
+- Added an authenticated server-side Premium order endpoint with server-calculated INR pricing, per-user rate limiting, strict request validation, and a client-supplied UUID idempotency key.
+- Added Razorpay Orders API integration using server-only key credentials; order amount and currency are checked before the order is stored.
+- Added a webhook endpoint that verifies HMAC-SHA256 against the original raw request bytes before parsing, requires the provider event ID, and persists event receipts with a database uniqueness constraint.
+- Captured payments are checked against the stored order amount and INR currency before a subscription is created in the same database transaction. Failed payment events cannot regress an already-paid payment. Unknown or mismatched events are durably flagged for review.
+- Added isolated integration tests for invalid signatures, duplicate captured events, one-time subscription creation, and amount mismatch.
+- This is a code foundation, not a live gateway validation. Test-mode credentials, real Razorpay test checkout, callback signature verification, reconciliation/recovery tooling, alerting, and external webhook delivery are not yet verified. Paid checkout remains disabled.
 
 ### Monitoring and incident response
 - No production error-tracking/monitoring provider or alert delivery was verified in this code review.
@@ -61,7 +64,10 @@ NexaFilm has a working Next.js application and a Phase 5 security-hardening draf
 - [ ] Investigate the Neon P3009 failed-migration record read-only, confirm which environment/database endpoint was targeted, then validate recovery against an isolated clone. No migration resolution or Production migration is authorized.
 - [ ] Audit event writes made atomic with business mutations and failure behavior tested.
 - [ ] Integration and browser E2E suites pass against isolated test services.
-- [ ] Payment order creation, signature verification, webhook idempotency/reconciliation and tests complete before enabling checkout.
+- [ ] Validate Razorpay test-mode order creation and checkout with test credentials; implement and test the checkout callback signature flow.
+- [ ] Add operational review/reconciliation for webhook events flagged REVIEW and for orders created upstream when the local order update fails.
+- [ ] Verify webhook delivery from Razorpay Test mode to the deployed preview endpoint, including duplicate and out-of-order events.
+- [ ] Complete independent payment security review before enabling paid checkout.
 - [ ] Resend delivery tested with verified sender/domain and production secrets.
 - [ ] Monitoring, alert routing, and incident ownership verified.
 - [ ] Vercel deployed response headers checked externally.
