@@ -129,7 +129,8 @@ test("admin movie POST creates a draft and its audit event through the real rout
 
 test("admin movie POST rejects cross-origin, non-JSON and oversized requests before authorization", async () => {
   const origin = "https://admin-route-test.example";
-  const body = JSON.stringify({ slug });
+  const guardSlug = `guard-${randomUUID()}`;
+  const body = JSON.stringify({ slug: guardSlug });
   const crossOrigin = new Request("https://admin-route-test.example/api/admin/movies", {
     method: "POST",
     headers: { origin: "https://attacker.example", "content-type": "application/json" },
@@ -156,8 +157,8 @@ test("admin movie POST rejects cross-origin, non-JSON and oversized requests bef
   const oversizedResponse = await createAdminMovie(oversized);
   assert.equal(oversizedResponse.status, 415, await oversizedResponse.clone().text());
 
-  assert.equal(await prismaTest.movie.count({ where: { slug } }), 0);
+  assert.equal(await prismaTest.movie.count({ where: { slug: guardSlug } }), 0);
   assert.equal(await prismaTest.adminAuditLog.count({
-    where: { action: "MOVIE_DRAFT_CREATED", metadata: { path: ["slug"], equals: slug } },
+    where: { action: "MOVIE_DRAFT_CREATED", metadata: { path: ["slug"], equals: guardSlug } },
   }), 0);
 });
