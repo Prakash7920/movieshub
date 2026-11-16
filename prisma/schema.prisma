@@ -295,6 +295,10 @@ model Payment {
   status PaymentStatus @default(PENDING)
   paymentMethod String?
   transactionId String?
+  requestKey String? @unique
+  razorpayOrderId String? @unique
+  plan PlanType @default(FREE)
+  billingCycle BillingCycle @default(MONTHLY)
   metadata Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -405,4 +409,18 @@ model AdminAuditLog {
   @@index([actorUserId, createdAt])
   @@index([resourceType, resourceId, createdAt], map: "AdminAuditLog_targetType_targetId_createdAt_idx")
   @@index([action, createdAt])
+}
+
+
+model PaymentWebhookEvent {
+  id String @id @default(cuid())
+  eventId String @unique
+  event String
+  razorpayOrderId String?
+  gatewayPaymentId String?
+  processingStatus String @default("RECEIVED")
+  receivedAt DateTime @default(now())
+  processedAt DateTime?
+  @@index([razorpayOrderId, receivedAt])
+  @@index([processingStatus, receivedAt])
 }
