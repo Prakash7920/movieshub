@@ -349,3 +349,39 @@ test("admin licence PATCH returns 404 when the movie has no licence record", asy
       action: { in: ["LICENSE_APPROVED", "LICENSE_REJECTED"] } },
   }), 0);
 });
+
+
+test("admin licence POST rejects cross-origin, non-JSON and oversized requests before authorization", async () => {
+  const origin = "https://admin-license-route-test.example";
+  const body = JSON.stringify({ movieId: `guard-movie-${suffix}` });
+  const crossOrigin = new Request("https://admin-license-route-test.example/api/admin/licenses", {
+    method: "POST",
+    headers: { origin: "https://attacker.example", "content-type": "application/json" },
+    body,
+  });
+  const wrongContentType = new Request("https://admin-license-route-test.example/api/admin/licenses", {
+    method: "POST",
+    headers: { origin, "content-type": "text/plain" },
+    body,
+  });
+  const oversized = new Request("https://admin-license-route-test.example/api/admin/licenses", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json", "content-length": "32769" },
+    body,
+  });
+
+  const crossOriginResponse = await saveAdminLicense(crossOrigin);
+  assert.equal(crossOriginResponse.status, 403, await crossOriginResponse.clone().text());
+  assert.equal(crossOriginResponse.headers.get("cache-control"), "no-store");
+
+  const wrongTypeResponse = await saveAdminLicense(wrongContentType);
+  assert.equal(wrongTypeResponse.status, 415, await wrongTypeResponse.clone().text());
+
+  const oversizedResponse = await saveAdminLicense(oversized);
+  assert.equal(oversizedResponse.status, 415, await oversizedResponse.clone().text());
+
+  assert.equal(await prismaTest.license.count({ where: { movieId: `guard-movie-${suffix}` } }), 0);
+  assert.equal(await prismaTest.adminAuditLog.count({
+    where: { action: "LICENSE_SAVED_PENDING", resourceType: "License", metadata: { path: ["movieId"], equals: `guard-movie-${suffix}` } },
+  }), 0);
+});
