@@ -22,7 +22,7 @@ NexaFilm has a working Next.js application and a Phase 5 security-hardening draf
 - Write endpoints apply same-origin and JSON content-type/body-size guards.
 - Movie and licence mutations emit admin audit events.
 - The new AdminAuditLog table has an append-only database trigger that rejects UPDATE and DELETE operations.
-- Audit event persistence is a separate database transaction after the business mutation in the current route handlers; it is not yet atomic with the underlying mutation. A failed audit write can therefore occur after the business change has committed. Treat this as a remaining hardening item.
+- Reviewed movie and licence mutation handlers call `writeAdminAuditEvent(tx)` inside the same Prisma transaction as the business mutation (including draft create/update/delete, licence save, approval, and rejection). The `tests/admin-audit-transaction.integration.test.ts` test forces an audit insert failure after a business write and asserts that the business row is rolled back. The admin route integration tests also verify a successful movie mutation persists its matching audit event. This closes the previously identified non-atomic audit-write gap for the reviewed handlers; it does not prove every admin endpoint is covered.
 - This review does not establish that every admin page or every API route is protected.
 
 ### Application security configuration
@@ -62,7 +62,7 @@ NexaFilm has a working Next.js application and a Phase 5 security-hardening draf
 
 - [ ] Phase 5 PR independently reviewed and approved.
 - [ ] Investigate the Neon P3009 failed-migration record read-only, confirm which environment/database endpoint was targeted, then validate recovery against an isolated clone. No migration resolution or Production migration is authorized.
-- [ ] Audit event writes made atomic with business mutations and failure behavior tested.
+- [x] Reviewed movie/licence audit writes are transaction-scoped; isolated rollback and route-level persistence tests are present and passed in CI run #407.
 - [ ] Integration and browser E2E suites pass against isolated test services.
 - [ ] Validate Razorpay test-mode order creation and checkout with test credentials; implement and test the checkout callback signature flow.
 - [ ] Add operational review/reconciliation for webhook events flagged REVIEW and for orders created upstream when the local order update fails.
