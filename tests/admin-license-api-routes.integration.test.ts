@@ -247,3 +247,105 @@ test("admin licence PATCH rejects a licence with a recorded reason and audits th
   assert.equal(audit.actorEmail, `licence-route-admin-${suffix}@example.invalid`);
   assert.deepEqual(audit.metadata, { rejectionReasonRecorded: true });
 });
+
+
+test("admin licence POST rejects invalid dates and country codes without creating records", async () => {
+  const invalidDateMovieId = await createMovie("invalid-date");
+  const invalidDate = await withSession(adminId, () => saveAdminLicense(licenseRequest("POST", {
+    movieId: invalidDateMovieId, owner: "Invalid Date Rights Holder", startDate: "not-a-date",
+    expiryDate: new Date(Date.now() + 86_400_000).toISOString(), countries: "IN",
+  })));
+  assert.ok(invalidDate);
+  assert.equal(invalidDate.status, 400, await invalidDate.clone().text());
+  assert.equal(await prismaTest.license.count({ where: { movieId: invalidDateMovieId } }), 0);
+
+  const reversedDateMovieId = await createMovie("reversed-date");
+  const reversedDate = await withSession(adminId, () => saveAdminLicense(licenseRequest("POST", {
+    movieId: reversedDateMovieId, owner: "Reversed Date Rights Holder",
+    startDate: new Date(Date.now() + 86_400_000).toISOString(),
+    expiryDate: new Date(Date.now() - 86_400_000).toISOString(), countries: "IN",
+  })));
+  assert.ok(reversedDate);
+  assert.equal(reversedDate.status, 400, await reversedDate.clone().text());
+  assert.equal(await prismaTest.license.count({ where: { movieId: reversedDateMovieId } }), 0);
+
+  const invalidCountryMovieId = await createMovie("invalid-country");
+  const invalidCountry = await withSession(adminId, () => saveAdminLicense(licenseRequest("POST", {
+    movieId: invalidCountryMovieId, owner: "Invalid Country Rights Holder",
+    startDate: new Date(Date.now() - 60_000).toISOString(),
+    expiryDate: new Date(Date.now() + 86_400_000).toISOString(), countries: "IN, INDIA, 123",
+  })));
+  assert.ok(invalidCountry);
+  assert.equal(invalidCountry.status, 400, await invalidCountry.clone().text());
+  assert.equal(await prismaTest.license.count({ where: { movieId: invalidCountryMovieId } }), 0);
+});
+
+test("admin licence POST returns 404 for a non-existent movie without audit mutation", async () => {
+  const missingMovieId = `missing-movie-${suffix}`;
+  const response = await withSession(adminId, () => saveAdminLicense(licenseRequest("POST", {
+    movieId: missingMovieId, owner: "Missing Movie Rights Holder",
+    startDate: new Date(Date.now() - 60_000).toISOString(),
+    expiryDate: new Date(Date.now() + 86_400_000).toISOString(), countries: "IN",
+  })));
+  assert.ok(response);
+  assert.equal(response.status, 404, await response.clone().text());
+  assert.equal(await prismaTest.license.count({ where: { movieId: missingMovieId } }), 0);
+  assert.equal(await prismaTest.adminAuditLog.count({
+    where: { actorUserId: adminId!, action: "LICENSE_SAVED_PENDING", resourceType: "License",
+      metadata: { path: ["movieId"], equals: missingMovieId } },
+  }), 0);
+});
+
+test("admin licence PATCH requires explicit agreement confirmation and a reference", async () => {
+  const movieId = await createMovie("missing-confirmation");
+  const saved = await savePendingLicense(movieId);
+  assert.ok(saved);
+  assert.equal(saved.status, 201, await saved.clone().text());
+  const response = await withSession(adminId, () => reviewAdminLicense(licenseRequest("PATCH", {
+    movieId, status: "ACTIVE", agreementReference: "SIGNED-AGREEMENT-2026-002",
+  })));
+  assert.ok(response);
+  assert.equal(response.status, 400, await response.clone().text());
+  const license = await prismaTest.license.findUnique({ where: { movieId }, select: { status: true } });
+  assert.ok(license);
+  assert.equal(license.status, "PENDING");
+  assert.equal(await prismaTest.adminAuditLog.count({
+    where: { actorUserId: adminId!, action: "LICENSE_APPROVED", resourceType: "License", resourceId: movieId },
+  }), 0);
+});
+
+test("admin licence PATCH requires a rejection reason and leaves the pending licence unchanged", async () => {
+  const movieId = await createMovie("missing-reason");
+  const saved = await savePendingLicense(movieId);
+  assert.ok(saved);
+  assert.equal(saved.status, 201, await saved.clone().text());
+  const response = await withSession(adminId, () => reviewAdminLicense(licenseRequest("PATCH", {
+    movieId, status: "REJECTED", reason: "  ",
+  })));
+  assert.ok(response);
+  assert.equal(response.status, 400, await response.clone().text());
+  const license = await prismaTest.license.findUnique({ where: { movieId }, select: { status: true } });
+  assert.ok(license);
+  assert.equal(license.status, "PENDING");
+  assert.equal(await prismaTest.adminAuditLog.count({
+    where: { actorUserId: adminId!, action: "LICENSE_REJECTED", resourceType: "License", resourceId: movieId },
+  }), 0);
+});
+
+test("admin licence PATCH returns 404 when the movie has no licence record", async () => {
+  const movieId = await createMovie("no-licence");
+  const approval = await withSession(adminId, () => reviewAdminLicense(licenseRequest("PATCH", {
+    movieId, status: "ACTIVE", confirmed: true, agreementReference: "SIGNED-AGREEMENT-2026-003",
+  })));
+  assert.ok(approval);
+  assert.equal(approval.status, 404, await approval.clone().text());
+  const rejection = await withSession(adminId, () => reviewAdminLicense(licenseRequest("PATCH", {
+    movieId, status: "REJECTED", reason: "No licence record exists",
+  })));
+  assert.ok(rejection);
+  assert.equal(rejection.status, 404, await rejection.clone().text());
+  assert.equal(await prismaTest.adminAuditLog.count({
+    where: { actorUserId: adminId!, resourceType: "License", resourceId: movieId,
+      action: { in: ["LICENSE_APPROVED", "LICENSE_REJECTED"] } },
+  }), 0);
+});
