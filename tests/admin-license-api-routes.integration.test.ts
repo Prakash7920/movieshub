@@ -371,13 +371,16 @@ test("admin licence POST rejects cross-origin, non-JSON and oversized requests b
   });
 
   const crossOriginResponse = await saveAdminLicense(crossOrigin);
+  assert.ok(crossOriginResponse);
   assert.equal(crossOriginResponse.status, 403, await crossOriginResponse.clone().text());
   assert.equal(crossOriginResponse.headers.get("cache-control"), "no-store");
 
   const wrongTypeResponse = await saveAdminLicense(wrongContentType);
+  assert.ok(wrongTypeResponse);
   assert.equal(wrongTypeResponse.status, 415, await wrongTypeResponse.clone().text());
 
   const oversizedResponse = await saveAdminLicense(oversized);
+  assert.ok(oversizedResponse);
   assert.equal(oversizedResponse.status, 415, await oversizedResponse.clone().text());
 
   assert.equal(await prismaTest.license.count({ where: { movieId: `guard-movie-${suffix}` } }), 0);
