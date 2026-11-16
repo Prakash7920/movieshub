@@ -33,8 +33,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid webhook event." }, { status: 400, headers: { "Cache-Control": "no-store" } });
   }
 
+  const eventPayload = (payload as { payload?: unknown }).payload;
+  if (!eventPayload || typeof eventPayload !== "object" || !("payment" in eventPayload)) {
+    return NextResponse.json({ error: "Invalid webhook payload." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+  }
+
   try {
-    const result = await acceptRazorpayWebhook({ eventId, event: (payload as { event: string }).event, payload: payload as Parameters<typeof acceptRazorpayWebhook>[0]["payload"] });
+    const result = await acceptRazorpayWebhook({
+      eventId,
+      event: (payload as { event: string }).event,
+      payload: eventPayload as Parameters<typeof acceptRazorpayWebhook>[0]["payload"],
+    });
     return NextResponse.json({ received: true, duplicate: result === "duplicate" }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     logSafeError("Razorpay webhook persistence failed", error);
