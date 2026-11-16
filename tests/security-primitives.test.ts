@@ -6,6 +6,8 @@ import { hasValidJsonContentType, isSameOriginRequest } from "../lib/security/re
 import { getVercelViewerCountry } from "../lib/licensing/territory";
 import { getSessionRevocationId } from "../lib/security/session-revocation";
 import { consumeRateLimit } from "../lib/security/rate-limit";
+import { createHmac } from "node:crypto";
+import { verifyRazorpayPaymentSignature, verifyRazorpayWebhookSignature } from "../lib/payments/razorpay";
 
 test("one-time tokens are cryptographically random, fixed-length and hashable", () => {
   const first = createOneTimeToken();
@@ -155,4 +157,27 @@ test("rate limiter rejects invalid limits and missing signing secrets before dat
     if (previousNextAuthSecret === undefined) delete process.env.NEXTAUTH_SECRET;
     else process.env.NEXTAUTH_SECRET = previousNextAuthSecret;
   }
+});
+
+
+test("Razorpay webhook signatures verify exact raw bytes and reject tampering", () => {
+  const secret = "unit-test-razorpay-webhook-secret";
+  const raw = Buffer.from('{"event":"payment.captured","payload":{}}');
+  const signature = createHmac("sha256", secret).update(raw).digest("hex");
+  assert.equal(verifyRazorpayWebhookSignature(raw, signature, secret), true);
+  assert.equal(verifyRazorpayWebhookSignature(Buffer.from(raw.toString() + " "), signature, secret), false);
+  assert.equal(verifyRazorpayWebhookSignature(raw, "0".repeat(64), secret), false);
+  assert.equal(verifyRazorpayWebhookSignature(raw, null, secret), false);
+  assert.equal(verifyRazorpayWebhookSignature(raw, "bad", secret), false);
+});
+
+test("Razorpay checkout callback signature binds the exact order and payment IDs", () => {
+  const secret = "unit-test-razorpay-api-secret";
+  const orderId = "order_test_123";
+  const paymentId = "pay_test_456";
+  const signature = createHmac("sha256", secret).update(`${orderId}|${paymentId}`).digest("hex");
+  assert.equal(verifyRazorpayPaymentSignature(orderId, paymentId, signature, secret), true);
+  assert.equal(verifyRazorpayPaymentSignature("order_other", paymentId, signature, secret), false);
+  assert.equal(verifyRazorpayPaymentSignature(orderId, "pay_other", signature, secret), false);
+  assert.equal(verifyRazorpayPaymentSignature(orderId, paymentId, null, secret), false);
 });
