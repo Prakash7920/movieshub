@@ -5,7 +5,7 @@ import { PrismaClient } from "@prisma/client";
 import { consumeRateLimit } from "../lib/security/rate-limit";
 
 const prisma = new PrismaClient();
-let testKey: string | null = null;
+const testKeys: string[] = [];
 
 before(async () => {
   if (process.env.MOVIESHUB_E2E !== "true") {
@@ -22,7 +22,7 @@ before(async () => {
 });
 
 after(async () => {
-  if (testKey) await prisma.rateLimitBucket.deleteMany({ where: { key: testKey } });
+  if (testKeys.length) await prisma.rateLimitBucket.deleteMany({ where: { key: { in: testKeys } } });
   await prisma.$disconnect();
 });
 
@@ -31,7 +31,8 @@ test("rate limits are atomic and shared across concurrent requests", async () =>
   const identifier = randomUUID();
   const secret = process.env.RATE_LIMIT_SECRET || process.env.NEXTAUTH_SECRET;
   assert.ok(secret && secret.length >= 32);
-  testKey = createHmac("sha256", secret).update(`${scope}:${identifier}`).digest("hex");
+  const key = createHmac("sha256", secret).update(`${scope}:${identifier.trim().toLowerCase()}`, "utf8").digest("hex");
+  testKeys.push(key);
 
   const results = await Promise.all(
     Array.from({ length: 8 }, () => consumeRateLimit(scope, identifier, 3, 60)),
@@ -39,4 +40,39 @@ test("rate limits are atomic and shared across concurrent requests", async () =>
 
   assert.equal(results.filter((result) => result.allowed).length, 3);
   assert.equal(results.filter((result) => !result.allowed).length, 5);
+});
+
+
+test("rate limit boundary reports remaining capacity and rejects the next request", async () => {
+  const scope = "integration-boundary";
+  const identifier = randomUUID();
+  const secret = process.env.RATE_LIMIT_SECRET || process.env.NEXTAUTH_SECRET;
+  assert.ok(secret && secret.length >= 32);
+  const key = createHmac("sha256", secret).update(`${scope}:${identifier.trim().toLowerCase()}`, "utf8").digest("hex");
+  testKeys.push(key);
+
+  const first = await consumeRateLimit(scope, identifier, 1, 60);
+  assert.equal(first.allowed, true);
+  assert.equal(first.limit, 1);
+  assert.equal(first.remaining, 0);
+  assert.ok(first.retryAfterSeconds >= 1 && first.retryAfterSeconds <= 60);
+
+  const second = await consumeRateLimit(scope, identifier, 1, 60);
+  assert.equal(second.allowed, false);
+  assert.equal(second.remaining, 0);
+  assert.ok(second.retryAfterSeconds >= 1 && second.retryAfterSeconds <= 60);
+});
+
+test("rate limit identifiers are normalized before hashing", async () => {
+  const scope = "integration-normalization";
+  const identifier = randomUUID();
+  const secret = process.env.RATE_LIMIT_SECRET || process.env.NEXTAUTH_SECRET;
+  assert.ok(secret && secret.length >= 32);
+  const key = createHmac("sha256", secret).update(`${scope}:${identifier.trim().toLowerCase()}`, "utf8").digest("hex");
+  testKeys.push(key);
+
+  const first = await consumeRateLimit(scope, identifier.toUpperCase(), 1, 60);
+  const second = await consumeRateLimit(scope, `  ${identifier.toLowerCase()}  `, 1, 60);
+  assert.equal(first.allowed, true);
+  assert.equal(second.allowed, false);
 });
