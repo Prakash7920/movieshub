@@ -3,9 +3,8 @@ import { logSafeError } from "@/lib/security/safe-log";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/security/client-identity";
 import { hasValidJsonContentType, isSameOriginRequest } from "@/lib/security/request-guards";
-import { getServerSession } from "next-auth/next";
+import { getAdminSession } from "@/lib/security/admin-session";
 import { LicenseStatus, ContentStatus } from "@prisma/client";
-import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
 import { writeAdminAuditEvent } from "@/lib/security/admin-audit-log";
 
@@ -28,7 +27,7 @@ async function requireAdmin(request: Request) {
   }
   let sessionUser: { id?: string } | undefined;
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getAdminSession();
     sessionUser = session?.user as { id?: string } | undefined;
   } catch (error) {
     logSafeError("Admin session lookup failed", error);
