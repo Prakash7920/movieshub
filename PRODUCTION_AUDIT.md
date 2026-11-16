@@ -51,6 +51,8 @@ NexaFilm has a working Next.js application and a Phase 5 security-hardening draf
 
 ### Database and backup operations
 - The Phase 5 migration is present in the branch but has not been applied to Production.
+- Read-only inspection of the Neon `preview` branch confirmed a failed `_prisma_migrations` record for `20261114120000_admin_audit_log` (no `finished_at`, no `rolled_back_at`, `applied_steps_count=0`). Its recorded error is PostgreSQL `42703`: column `resourceType` does not exist. The current checked-in migration uses the legacy physical column names `targetType`/`targetId` and creates its index on those names. The live Preview `AdminAuditLog` table has `targetType`, `targetId`, and `actorEmail`, and the expected `targetType` index exists. This is consistent with a failed attempt using an older/different migration body than the currently checked-in file; the historical checksum/body has not yet been independently matched.
+- **P3009 remains unresolved.** No `migrate resolve`, migration retry, schema change, or Neon write was performed. Recovery requires a reviewed plan based on the exact failed migration checksum and the live Preview schema, followed by validation on an isolated clone before any Preview repair.
 - Neon PITR configuration and a successful isolated restore drill require external evidence.
 - Do not run migrations or restore tests against Production as part of this PR validation.
 
@@ -61,7 +63,7 @@ NexaFilm has a working Next.js application and a Phase 5 security-hardening draf
 ## Production release gates
 
 - [ ] Phase 5 PR independently reviewed and approved.
-- [ ] Investigate the Neon P3009 failed-migration record read-only, confirm which environment/database endpoint was targeted, then validate recovery against an isolated clone. No migration resolution or Production migration is authorized.
+- [x] Read-only Neon Preview investigation completed: P3009 record, SQLSTATE 42703, live audit-table columns/indexes, and current checked-in migration SQL compared. Recovery remains blocked pending checksum reconciliation and an isolated-clone plan; no migration resolution or database writes were performed.
 - [x] Reviewed movie/licence audit writes are transaction-scoped; isolated rollback and route-level persistence tests are present and passed in CI run #407.
 - [ ] Integration and browser E2E suites pass against isolated test services.
 - [ ] Validate Razorpay test-mode order creation and checkout with test credentials; implement and test the checkout callback signature flow.
