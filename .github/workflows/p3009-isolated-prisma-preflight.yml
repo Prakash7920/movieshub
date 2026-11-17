@@ -1,6 +1,14 @@
 name: P3009 Isolated Prisma Recovery Preflight
 
 on:
+  push:
+    branches:
+      - phase-5/consolidated-security-ops
+    paths:
+      - '.github/workflows/p3009-isolated-prisma-preflight.yml'
+      - 'prisma/**'
+      - 'package.json'
+      - 'package-lock.json'
   workflow_dispatch:
 
 permissions:
@@ -38,5 +46,4 @@ jobs:
           echo "Database secret is present; value will not be printed."
 
       - name: Inspect Prisma migration status (read-only)
-        continue-on-error: true
         run: npx prisma migrate status
