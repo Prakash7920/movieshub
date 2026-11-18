@@ -64,7 +64,7 @@ jobs:
               actual="$(git show "origin/integration/nexafilm-security-brand:$path" | sha256sum | awk '{print $1}')"
               source="integration/nexafilm-security-brand"
             else
-              actual="$(git show "FETCH_HEAD:$path" | sha256sum | awk '{print $1}')"
+              actual="$(git show "origin/integration/nexafilm-security:$path" | sha256sum | awk '{print $1}')"
               source="integration/nexafilm-security"
             fi
             if [ "$actual" != "${expected[$migration]}" ]; then
