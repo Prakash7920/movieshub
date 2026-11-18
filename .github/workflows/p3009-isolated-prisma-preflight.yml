@@ -56,7 +56,7 @@ jobs:
             [20261104120000_enforce_required_array_columns]=0b9ca2e12abe565015296a914410c24e9977ed8d21bf73fac549657961eedd24
             [20261108020000_auth_rate_limit]=788ea25c07506ba6c9f5fecfa2ec72ada9e13b42ebfbda101c977079614bdee9
             [20261108040000_admin_audit_log]=93a3c45197711956b20bc826c7251f6c2b48567203ba0812e331c411aa7c43f8
-            [20261109010000_admin_audit_log_append_only]=3da7bfc427b2d488f56a8d76543d3651b1bdfb70e5fc664ae18a971e65aad12
+            [20261109010000_admin_audit_log_append_only]=3da7bfc427b2d488f56a8d76543d3651b1bdfb70e5fc664ae18a971e65aad12a
           )
           for migration in "${!expected[@]}"; do
             path="prisma/migrations/$migration/migration.sql"
