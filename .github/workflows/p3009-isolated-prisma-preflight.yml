@@ -49,6 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin integration/nexafilm-security
+          git fetch --no-tags origin integration/nexafilm-security-brand
           declare -A expected=(
             [20261103200000_security_foundation]=f02627ddfbfba41c88c4b57271933dc097fdc88c8dde6ecb8072160f21ed178d
             [20261103210000_session_revocation]=aa422cbdc42f8e2a2e9e20bfbefc10db96aeaf8357b1e666b27dc2499715d164
@@ -59,14 +60,20 @@ jobs:
           )
           for migration in "${!expected[@]}"; do
             path="prisma/migrations/$migration/migration.sql"
-            actual="$(git show "FETCH_HEAD:$path" | sha256sum | awk '{print $1}')"
+            if [ "$migration" = "20261109010000_admin_audit_log_append_only" ]; then
+              actual="$(git show "origin/integration/nexafilm-security-brand:$path" | sha256sum | awk '{print $1}')"
+              source="integration/nexafilm-security-brand"
+            else
+              actual="$(git show "FETCH_HEAD:$path" | sha256sum | awk '{print $1}')"
+              source="integration/nexafilm-security"
+            fi
             if [ "$actual" != "${expected[$migration]}" ]; then
-              echo "::error::Checksum mismatch for $migration"
+              echo "::error::Checksum mismatch for $migration from $source"
               echo "Expected: ${expected[$migration]}"
               echo "Actual:   $actual"
               exit 1
             fi
-            echo "CHECKSUM PASS: $migration"
+            echo "CHECKSUM PASS: $migration ($source)"
           done
           echo "All six historical migration SQL files match the stored Neon checksums."
 
