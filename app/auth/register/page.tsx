@@ -6,7 +6,7 @@ export default function RegisterPage() {
   return (
     <div className="page-shell py-16">
       <div className="mx-auto max-w-2xl rounded-[2rem] border border-white/10 bg-card/80 p-8 md:p-12">
-        <p className="text-sm uppercase tracking-[0.2em] text-red-200">Join MoviesHub</p>
+        <p className="text-sm uppercase tracking-[0.2em] text-red-200">Join NexaFilm</p>
         <h1 className="mt-3 text-4xl font-black text-white">Create your account</h1>
         <p className="mt-3 text-gray-400">Start your Tamil cinema journey with a premium or free plan.</p>
 

@@ -17,7 +17,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>(defaultLanguage);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("movieshub-language") as Language | null;
+    const stored = window.localStorage.getItem("nexafilm-language") as Language | null;
     if (stored === "en" || stored === "ta") {
       setLanguageState(stored);
       return;
@@ -30,13 +30,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const setLanguage = (nextLanguage: Language) => {
     setLanguageState(nextLanguage);
-    window.localStorage.setItem("movieshub-language", nextLanguage);
+    window.localStorage.setItem("nexafilm-language", nextLanguage);
     document.documentElement.lang = nextLanguage;
   };
 
   useEffect(() => {
     document.documentElement.lang = language;
-    window.localStorage.setItem("movieshub-language", language);
+    window.localStorage.setItem("nexafilm-language", language);
   }, [language]);
 
   const value = useMemo(
