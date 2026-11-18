@@ -57,7 +57,7 @@ export async function POST(request: Request) {
 
     const appUrl = (process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
     const resetUrl = `${appUrl}/auth/reset-password?token=${rawToken}`;
-    const from = process.env.RESEND_FROM_EMAIL || "MoviesHub <onboarding@resend.dev>";
+    const from = process.env.RESEND_FROM_EMAIL || "NexaFilm <onboarding@resend.dev>";
 
     const emailResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -68,8 +68,8 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         from,
         to: [user.email],
-        subject: "Reset your MoviesHub password",
-        html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111"><h2>Reset your MoviesHub password</h2><p>We received a request to reset the password for your account.</p><p><a href="${resetUrl}" style="display:inline-block;padding:12px 20px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px">Reset password</a></p><p>This link expires in 30 minutes and can be used only once. If you did not request this, you can ignore this email.</p></div>`,
+        subject: "Reset your NexaFilm password",
+        html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111"><h2>Reset your NexaFilm password</h2><p>We received a request to reset the password for your account.</p><p><a href="${resetUrl}" style="display:inline-block;padding:12px 20px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px">Reset password</a></p><p>This link expires in 30 minutes and can be used only once. If you did not request this, you can ignore this email.</p></div>`,
       }),
     });
 

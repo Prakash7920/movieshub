@@ -1,6 +1,6 @@
-# MoviesHub
+# NexaFilm
 
-MoviesHub is a legal OTT-style platform prototype for Indian-language cinema. The repository contains sample metadata only. Playback remains disabled until distribution rights and secure media delivery are verified.
+NexaFilm is a legal OTT-style platform prototype for Indian-language cinema. The repository contains sample metadata only. Playback remains disabled until distribution rights and secure media delivery are verified.
 
 ## Stack
 
