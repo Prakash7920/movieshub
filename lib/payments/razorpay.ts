@@ -2,6 +2,20 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { PaymentStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
+export function isRazorpayTestModePreviewEnabled(runtimeEnv: NodeJS.ProcessEnv = process.env): boolean {
+  return runtimeEnv.VERCEL_ENV === "preview"
+    && runtimeEnv.VERCEL_GIT_COMMIT_REF === "phase-5/consolidated-security-ops"
+    && runtimeEnv.RAZORPAY_KEY_ID?.startsWith("rzp_test_") === true
+    && Boolean(runtimeEnv.RAZORPAY_KEY_SECRET?.trim())
+    && Boolean(runtimeEnv.RAZORPAY_WEBHOOK_SECRET?.trim());
+}
+
+export function isRazorpayPaymentsAllowed(runtimeEnv: NodeJS.ProcessEnv = process.env): boolean {
+  if (runtimeEnv.NODE_ENV !== "production") return true;
+  return isRazorpayTestModePreviewEnabled(runtimeEnv);
+}
+
+
 type RazorpayOrderResponse = { id: string; amount: number; currency: string; status: string };
 
 function requiredPaymentEnv(name: "RAZORPAY_KEY_ID" | "RAZORPAY_KEY_SECRET" | "RAZORPAY_WEBHOOK_SECRET"): string {

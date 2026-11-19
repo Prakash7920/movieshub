@@ -7,7 +7,26 @@ import { getVercelViewerCountry } from "../lib/licensing/territory";
 import { getSessionRevocationId } from "../lib/security/session-revocation";
 import { consumeRateLimit } from "../lib/security/rate-limit";
 import { createHmac } from "node:crypto";
-import { verifyRazorpayPaymentSignature, verifyRazorpayWebhookSignature } from "../lib/payments/razorpay";
+import { isRazorpayPaymentsAllowed, isRazorpayTestModePreviewEnabled, verifyRazorpayPaymentSignature, verifyRazorpayWebhookSignature } from "../lib/payments/razorpay";
+
+test("Razorpay Test Mode is restricted to the exact Phase 5 Preview branch", () => {
+  const validPreview = {
+    NODE_ENV: "production",
+    VERCEL_ENV: "preview",
+    VERCEL_GIT_COMMIT_REF: "phase-5/consolidated-security-ops",
+    RAZORPAY_KEY_ID: "rzp_test_unit",
+    RAZORPAY_KEY_SECRET: "unit-test-secret",
+    RAZORPAY_WEBHOOK_SECRET: "unit-test-webhook-secret",
+  } as NodeJS.ProcessEnv;
+
+  assert.equal(isRazorpayTestModePreviewEnabled(validPreview), true);
+  assert.equal(isRazorpayPaymentsAllowed(validPreview), true);
+  assert.equal(isRazorpayPaymentsAllowed({ ...validPreview, VERCEL_ENV: "production" }), false);
+  assert.equal(isRazorpayPaymentsAllowed({ ...validPreview, VERCEL_GIT_COMMIT_REF: "main" }), false);
+  assert.equal(isRazorpayPaymentsAllowed({ ...validPreview, RAZORPAY_KEY_ID: "rzp_live_unit" }), false);
+  assert.equal(isRazorpayPaymentsAllowed({ ...validPreview, RAZORPAY_WEBHOOK_SECRET: "" }), false);
+  assert.equal(isRazorpayPaymentsAllowed({ NODE_ENV: "development" }), true);
+});
 
 test("one-time tokens are cryptographically random, fixed-length and hashable", () => {
   const first = createOneTimeToken();

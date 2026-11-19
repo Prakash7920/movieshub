@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { acceptRazorpayWebhook, getRazorpayWebhookSecret, verifyRazorpayWebhookSignature } from "@/lib/payments/razorpay";
+import { acceptRazorpayWebhook, getRazorpayWebhookSecret, isRazorpayPaymentsAllowed, verifyRazorpayWebhookSignature } from "@/lib/payments/razorpay";
 import { logSafeError } from "@/lib/security/safe-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  if (!isRazorpayPaymentsAllowed()) return NextResponse.json({ error: "Payments are not enabled in this environment." }, { status: 404, headers: { "Cache-Control": "no-store" } });
   const contentType = request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
   if (contentType !== "application/json") return NextResponse.json({ error: "JSON required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
 

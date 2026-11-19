@@ -4,7 +4,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
 import { hasValidJsonContentType, isSameOriginRequest } from "@/lib/security/request-guards";
-import { acceptRazorpayWebhook, fetchRazorpayPayment, getRazorpayWebhookSecret, verifyRazorpayPaymentSignature } from "@/lib/payments/razorpay";
+import { acceptRazorpayWebhook, fetchRazorpayPayment, isRazorpayPaymentsAllowed, verifyRazorpayPaymentSignature } from "@/lib/payments/razorpay";
 import { logSafeError } from "@/lib/security/safe-log";
 
 export const runtime = "nodejs";
@@ -16,6 +16,7 @@ const callbackSchema = z.object({
 }).strict();
 
 export async function POST(request: Request) {
+  if (!isRazorpayPaymentsAllowed()) return NextResponse.json({ error: "Payments are not enabled in this environment." }, { status: 404, headers: { "Cache-Control": "no-store" } });
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
   if (!(await hasValidJsonContentType(request, 8 * 1024))) return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
   const session = await getServerSession(authOptions);

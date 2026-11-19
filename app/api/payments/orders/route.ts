@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { hasValidJsonContentType, isSameOriginRequest } from "@/lib/security/request-guards";
 import { getSubscriptionPrice } from "@/lib/subscriptions/plans";
-import { createRazorpayOrder } from "@/lib/payments/razorpay";
+import { createRazorpayOrder, isRazorpayPaymentsAllowed } from "@/lib/payments/razorpay";
 import { logSafeError } from "@/lib/security/safe-log";
 
 export const runtime = "nodejs";
@@ -19,6 +19,7 @@ const requestSchema = z.object({
 }).strict();
 
 export async function POST(request: Request) {
+  if (!isRazorpayPaymentsAllowed()) return NextResponse.json({ error: "Payments are not enabled in this environment." }, { status: 404, headers: { "Cache-Control": "no-store" } });
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
   if (!(await hasValidJsonContentType(request, 8 * 1024))) return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
 
