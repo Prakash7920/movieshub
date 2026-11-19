@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { getSession, signOut } from "next-auth/react";
 import { Film, Home, LayoutDashboard, ShieldCheck, Sparkles, LogOut } from "lucide-react";
@@ -44,12 +45,15 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/60 backdrop-blur-xl">
       <div className="page-shell flex items-center justify-between gap-4 py-4">
-        <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 font-bold text-white">M</div>
-          <div>
-            <div className="text-base font-semibold text-white">{t.brand}</div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-gray-400">{t.tagline}</div>
-          </div>
+        <Link href="/" aria-label="NexaFilm home" className="flex items-center">
+          <Image
+            src="/nexafilm-logo.svg"
+            alt="NexaFilm — One Platform. Every Language. Endless Stories."
+            width={210}
+            height={53}
+            priority
+            className="h-auto w-[132px] sm:w-[168px] lg:w-[190px]"
+          />
         </Link>
         <nav className="hidden items-center gap-2 md:flex">
           {navItems.map(({ href, labelKey, icon: Icon }) => (
