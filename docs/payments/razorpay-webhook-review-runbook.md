@@ -6,38 +6,38 @@
 
 ## 1. Purpose and safety boundary
 
-This runbook explains how an authorized payments operator should investigate a \`PaymentWebhookEvent\` whose \`processingStatus\` is \`REVIEW\`.
+This runbook explains how an authorized payments operator should investigate a `PaymentWebhookEvent` whose `processingStatus` is `REVIEW`.
 
-A \`REVIEW\` receipt means the webhook was authenticated and durably received, but the application deliberately did not grant Premium access because it could not establish that the event matched a valid local payment. It is **not** proof that the customer paid, and it is **not** a failed-payment determination.
+A `REVIEW` receipt means the webhook was authenticated and durably received, but the application deliberately did not grant Premium access because it could not establish that the event matched a valid local payment. It is **not** proof that the customer paid, and it is **not** a failed-payment determination.
 
-The current application has no dedicated admin endpoint or automated workflow that resolves a \`REVIEW\` receipt. This runbook is an investigation and escalation procedure, not permission to edit payment records. Do not directly update \`Payment\`, \`PaymentWebhookEvent\`, or \`Subscription\` rows; do not manually grant Premium; do not mark a receipt \`PROCESSED\`; and do not replay an event with a fabricated event ID.
+The current application has no dedicated admin endpoint or automated workflow that resolves a `REVIEW` receipt. This runbook is an investigation and escalation procedure, not permission to edit payment records. Do not directly update `Payment`, `PaymentWebhookEvent`, or `Subscription` rows; do not manually grant Premium; do not mark a receipt `PROCESSED`; and do not replay an event with a fabricated event ID.
 
 Production payment activity remains out of scope until the separate provider, monitoring, and release approvals are completed.
 
 ## 2. What the current implementation does
 
-The webhook route at \`app/api/webhooks/razorpay/route.ts\`:
+The webhook route at `app/api/webhooks/razorpay/route.ts`:
 
 1. Accepts JSON only and reads the original raw request bytes.
 2. Rejects an empty body or a body larger than 1 MiB.
-3. Verifies \`x-razorpay-signature\` against the raw bytes using \`RAZORPAY_WEBHOOK_SECRET\`.
-4. Validates \`x-razorpay-event-id\` (non-empty, at most 255 characters, restricted character set) and the expected event/payload structure.
-5. Calls \`acceptRazorpayWebhook\` to persist and process the event.
+3. Verifies `x-razorpay-signature` against the raw bytes using `RAZORPAY_WEBHOOK_SECRET`.
+4. Validates `x-razorpay-event-id` (non-empty, at most 255 characters, restricted character set) and the expected event/payload structure.
+5. Calls `acceptRazorpayWebhook` to persist and process the event.
 
-The handler in \`lib/payments/razorpay.ts\` creates a \`PaymentWebhookEvent\` receipt with \`processingStatus = RECEIVED\` inside a database transaction. It then applies these outcomes:
+The handler in `lib/payments/razorpay.ts` creates a `PaymentWebhookEvent` receipt with `processingStatus = RECEIVED` inside a database transaction. It then applies these outcomes:
 
 | Condition | Receipt result | Payment / subscription effect |
 |---|---|---|
-| Event is not \`payment.captured\` or \`payment.failed\` | \`IGNORED\` | No payment or subscription change |
-| Supported event is missing order ID or payment ID | \`REVIEW\` | No payment or subscription change |
-| No local payment matches the order, or local currency is not INR | \`REVIEW\` | No payment or subscription change |
-| Captured amount, currency, or status does not match the local order | \`REVIEW\` | No payment or subscription change |
-| Valid captured event matches the local order | \`PROCESSED\` | Payment becomes \`PAID\` and one subscription is created unless the payment is already \`PAID\` |
-| Valid failed event matches a local pending payment | \`PROCESSED\` | Pending payment becomes \`FAILED\`; no subscription is created |
+| Event is not `payment.captured` or `payment.failed` | `IGNORED` | No payment or subscription change |
+| Supported event is missing order ID or payment ID | `REVIEW` | No payment or subscription change |
+| No local payment matches the order, or local currency is not INR | `REVIEW` | No payment or subscription change |
+| Captured amount, currency, or status does not match the local order | `REVIEW` | No payment or subscription change |
+| Valid captured event matches the local order | `PROCESSED` | Payment becomes `PAID` and one subscription is created unless the payment is already `PAID` |
+| Valid failed event matches a local pending payment | `PROCESSED` | Pending payment becomes `FAILED`; no subscription is created |
 | Duplicate event ID violates the unique constraint | Existing receipt remains unchanged; route reports duplicate | No second processing or subscription grant |
 | Durable persistence fails | No success acknowledgement; route returns HTTP 503 | Event was not confirmed as durably accepted |
 
-The \`REVIEW\` branches set \`processedAt\`, but do not alter the payment or create a subscription. The webhook handler does not independently query Razorpay for the payment; it evaluates the authenticated event payload against the local order.
+The `REVIEW` branches set `processedAt`, but do not alter the payment or create a subscription. The webhook handler does not independently query Razorpay for the payment; it evaluates the authenticated event payload against the local order.
 
 Invalid signatures and malformed requests are rejected before a durable event receipt is created.
 
@@ -45,7 +45,7 @@ Invalid signatures and malformed requests are rejected before a durable event re
 
 Only an operator with approved, least-privilege access may investigate payment records or the Razorpay merchant dashboard.
 
-For each \`REVIEW\` receipt, record in the approved incident/ticket system:
+For each `REVIEW` receipt, record in the approved incident/ticket system:
 
 - Receipt event ID and event type.
 - Receipt time.
@@ -61,7 +61,7 @@ Do not put API secrets, webhook secrets, signatures, private environment values,
 
 If an approved read-only database session is available, an operator may use the following query to list review receipts and matching local payment details. It is an inspection query only; it does not resolve or modify anything.
 
-\`\`\`sql
+```sql
 SELECT
   e."eventId",
   e."event",
@@ -79,7 +79,7 @@ LEFT JOIN "Payment" AS p
   ON p."razorpayOrderId" = e."razorpayOrderId"
 WHERE e."processingStatus" = 'REVIEW'
 ORDER BY e."receivedAt" ASC;
-\`\`\`
+```
 
 Use only the approved environment and read-only credentials. Do not run this query against Production unless the responsible owner has separately approved that read access. Never paste connection URLs or credentials into chat or tickets.
 
@@ -89,7 +89,7 @@ Using the authorized Razorpay merchant dashboard or an approved provider API cli
 
 - Whether the payment ID exists.
 - Whether it belongs to the recorded order ID.
-- Whether provider status is \`captured\` (not merely created, authorized, failed, or pending).
+- Whether provider status is `captured` (not merely created, authorized, failed, or pending).
 - Whether its amount, expressed in paise, exactly matches the local payment amount multiplied by 100.
 - Whether its currency matches the local payment currency (the current order flow expects INR).
 - Whether event ID, payment ID, order ID, and timestamps align with the provider delivery record.
@@ -106,20 +106,20 @@ Do not infer capture from a successful checkout redirect, a customer screenshot,
 
 ## 5. Supported customer callback path
 
-The current \`POST /api/payments/verify\` route is not an admin recovery endpoint. It is an authenticated, same-origin customer checkout callback. It requires:
+The current `POST /api/payments/verify` route is not an admin recovery endpoint. It is an authenticated, same-origin customer checkout callback. It requires:
 
 - A logged-in user.
 - An order ID belonging to that user.
 - The Razorpay payment ID.
 - The Razorpay checkout signature.
 
-The server verifies the callback signature, fetches the payment from Razorpay using configured server-side credentials, and checks provider order ID, amount, currency, and \`captured\` status before invoking the common payment acceptance logic.
+The server verifies the callback signature, fetches the payment from Razorpay using configured server-side credentials, and checks provider order ID, amount, currency, and `captured` status before invoking the common payment acceptance logic.
 
-When a customer can complete this genuine callback flow, it may independently process the valid captured payment. It creates a separate synthetic receipt ID in the form \`callback:<paymentId>\`; it does **not** update or close the original webhook receipt in \`REVIEW\`.
+When a customer can complete this genuine callback flow, it may independently process the valid captured payment. It creates a separate synthetic receipt ID in the form `callback:<paymentId>`; it does **not** update or close the original webhook receipt in `REVIEW`.
 
 Therefore:
 
-- A successful customer callback may reconcile the **payment entitlement** while the original webhook receipt remains \`REVIEW\`.
+- A successful customer callback may reconcile the **payment entitlement** while the original webhook receipt remains `REVIEW`.
 - The original receipt must remain visible as an operational exception until a separately reviewed receipt-closure mechanism exists.
 - Do not ask a customer to disclose their signature, secrets, or account credentials to support staff.
 - Do not impersonate the customer or fabricate callback details.
@@ -132,23 +132,23 @@ An operator may close the external incident/ticket only when the payment owner h
 
 Possible outcomes:
 
-1. **Confirmed captured payment; supported callback completed:** record verified payment/subscription evidence. Keep the original \`REVIEW\` receipt as-is; note that the original receipt remains unresolved at the data level.
+1. **Confirmed captured payment; supported callback completed:** record verified payment/subscription evidence. Keep the original `REVIEW` receipt as-is; note that the original receipt remains unresolved at the data level.
 2. **Confirmed not captured / failed / cancelled:** keep Premium ungranted and follow the existing customer support/refund policy. Do not change the review receipt manually.
 3. **Provider/local mismatch or ambiguous evidence:** leave entitlement unchanged, retain the receipt, and escalate to the payments owner/provider support.
 4. **Suspected duplicate, fraud, signature, or account compromise:** preserve evidence and invoke the security/incident response process.
 
-A durable data-level resolution for the original \`REVIEW\` receipt requires a separately designed, access-controlled, audited recovery mechanism with tests for authorization, provider verification, idempotency, payment/subscription transactionality, and receipt linkage. That mechanism is not implemented by this runbook.
+A durable data-level resolution for the original `REVIEW` receipt requires a separately designed, access-controlled, audited recovery mechanism with tests for authorization, provider verification, idempotency, payment/subscription transactionality, and receipt linkage. That mechanism is not implemented by this runbook.
 
 ## 7. Monitoring and release gate
 
-The current implementation records receipt status but this code does not include an operational alerting/dashboard workflow for \`REVIEW\` receipts. Until that is implemented and tested, an operator must not assume that review cases will be proactively surfaced.
+The current implementation records receipt status but this code does not include an operational alerting/dashboard workflow for `REVIEW` receipts. Until that is implemented and tested, an operator must not assume that review cases will be proactively surfaced.
 
 Before enabling real payments or treating this gate as passed, require:
 
 - Razorpay Test-mode credentials configured through the approved secret-management process.
 - Provider-hosted test checkout and webhook delivery exercised end-to-end.
-- Verified tests for each \`REVIEW\` condition and the customer callback recovery path.
-- An owner-approved alert/queue for new and aging \`REVIEW\` receipts, with escalation ownership and response targets.
+- Verified tests for each `REVIEW` condition and the customer callback recovery path.
+- An owner-approved alert/queue for new and aging `REVIEW` receipts, with escalation ownership and response targets.
 - A separately reviewed and tested data-level receipt-resolution design, or an explicit documented decision to retain original review receipts as immutable exception evidence.
 - Evidence that duplicate events cannot create duplicate subscriptions and mismatches never grant Premium.
 
@@ -156,8 +156,8 @@ Before enabling real payments or treating this gate as passed, require:
 
 ## 8. Implementation references
 
-- Webhook intake: \`app/api/webhooks/razorpay/route.ts\`
-- Receipt and payment processing: \`lib/payments/razorpay.ts\`
-- Authenticated customer callback: \`app/api/payments/verify/route.ts\`
-- Receipt and payment schema: \`prisma/schema.prisma\`
-- Integration coverage: \`tests/razorpay-webhook.integration.test.ts\`
+- Webhook intake: `app/api/webhooks/razorpay/route.ts`
+- Receipt and payment processing: `lib/payments/razorpay.ts`
+- Authenticated customer callback: `app/api/payments/verify/route.ts`
+- Receipt and payment schema: `prisma/schema.prisma`
+- Integration coverage: `tests/razorpay-webhook.integration.test.ts`
