@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     }
 
     const appUrl = getPublicAppUrl();
-    if (!appUrl || !process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+    if (!appUrl) {
       return NextResponse.json({ message: genericMessage }, { status: 202, headers: { "Cache-Control": "no-store" } });
     }
 
@@ -60,26 +60,17 @@ export async function POST(request: Request) {
       data: { userId: user.id, tokenHash: oneTimeToken.tokenHash, expiresAt },
     });
 
-    const appUrl = (process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
-    const resetUrl = `${appUrl}/auth/reset-password?token=${rawToken}`;
-    const from = process.env.RESEND_FROM_EMAIL || "NexaFilm <onboarding@resend.dev>";
-
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: [user.email],
-        subject: "Reset your NexaFilm password",
-        html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111"><h2>Reset your NexaFilm password</h2><p>We received a request to reset the password for your account.</p><p><a href="${resetUrl}" style="display:inline-block;padding:12px 20px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px">Reset password</a></p><p>This link expires in 30 minutes and can be used only once. If you did not request this, you can ignore this email.</p></div>`,
-      }),
+    const resetUrl = `${appUrl}/auth/reset-password?token=${oneTimeToken.token}`;
+    const delivery = await sendTransactionalEmail({
+      to: user.email,
+      subject: "Reset your NexaFilm password",
+      html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111"><h2>Reset your NexaFilm password</h2><p>We received a request to reset the password for your account.</p><p><a href="${resetUrl}" style="display:inline-block;padding:12px 20px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px">Reset password</a></p><p>This link expires in 30 minutes and can be used only once. If you did not request this, you can ignore this email.</p></div>`,
     });
 
     if (!delivery.sent) {
-      await prisma.passwordResetToken.deleteMany({ where: { tokenHash: oneTimeToken.tokenHash } });
+      await prisma.passwordResetToken.deleteMany({
+        where: { tokenHash: oneTimeToken.tokenHash },
+      });
     }
 
     return NextResponse.json({ message: genericMessage }, { status: 202, headers: { "Cache-Control": "no-store" } });
