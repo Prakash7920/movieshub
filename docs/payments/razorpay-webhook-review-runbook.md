@@ -33,11 +33,13 @@ The handler in `lib/payments/razorpay.ts` creates a `PaymentWebhookEvent` receip
 | No local payment matches the order, or local currency is not INR | `REVIEW` | No payment or subscription change |
 | Captured amount, currency, or status does not match the local order | `REVIEW` | No payment or subscription change |
 | Valid captured event matches the local order | `PROCESSED` | Payment becomes `PAID` and one subscription is created unless the payment is already `PAID` |
-| Valid failed event matches a local pending payment | `PROCESSED` | Pending payment becomes `FAILED`; no subscription is created |
+| `payment.failed` event includes order ID and payment ID, and the order resolves to a local INR payment | `PROCESSED` | If the local payment is `PENDING`, it becomes `FAILED`; otherwise payment and subscription state remain unchanged. The current handler does **not** compare the event amount, currency, or `entity.status` with the local order on this path |
 | Duplicate event ID violates the unique constraint | Existing receipt remains unchanged; route reports duplicate | No second processing or subscription grant |
 | Durable persistence fails | No success acknowledgement; route returns HTTP 503 | Event was not confirmed as durably accepted |
 
 The `REVIEW` branches set `processedAt`, but do not alter the payment or create a subscription. The webhook handler does not independently query Razorpay for the payment; it evaluates the authenticated event payload against the local order.
+
+**Failed-event validation limitation:** for `payment.failed`, the current handler requires an order ID and payment ID, resolves the order to a local INR payment, and marks a pending payment as failed. It does not independently compare the payload amount, currency, or `entity.status`, and it does not fetch the payment from Razorpay on this webhook path. A `PROCESSED` receipt therefore means the handler completed its current processing logic; it is not a separate provider-side verification. Verify provider records before making customer-impacting decisions.
 
 Invalid signatures and malformed requests are rejected before a durable event receipt is created.
 
