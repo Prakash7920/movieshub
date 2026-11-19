@@ -60,15 +60,15 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/60 backdrop-blur-xl">
-      <div className="page-shell flex items-center justify-between gap-2 py-3">
-        <Link href="/" aria-label="NexaFilm home" className="flex min-w-0 shrink items-center gap-2">
+      <div className="page-shell flex items-center justify-between gap-4 py-4">
+        <Link href="/" aria-label="NexaFilm home" className="flex items-center">
           <Image
             src="/nexafilm-logo.svg"
             alt="NexaFilm — One Platform. Every Language. Endless Stories."
             width={210}
             height={53}
             priority
-            className="h-auto w-[128px] shrink-0 sm:w-[170px] lg:w-[190px]"
+            className="h-auto w-[132px] sm:w-[168px] lg:w-[190px]"
           />
         </Link>
         <nav className="hidden items-center gap-2 md:flex">

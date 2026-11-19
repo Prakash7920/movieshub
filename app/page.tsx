@@ -11,16 +11,10 @@ export default function HomePage() {
           Discover a premium legal cinema experience spanning Tamil, Telugu, Malayalam, Kannada, Hindi, Bengali, Marathi, and more.
         </p>
         <div className="mt-8 flex flex-wrap gap-4">
-          <Link
-            href="/movies"
-            className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 font-medium text-white transition hover:opacity-90"
-          >
+          <Link href="/movies" className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 font-medium text-white transition hover:opacity-90">
             Explore the Catalogue
           </Link>
-          <Link
-            href="/auth/register"
-            className="inline-flex items-center justify-center rounded-full border border-white/10 bg-transparent px-6 py-3 font-medium text-white transition hover:border-white/20"
-          >
+          <Link href="/auth/register" className="inline-flex items-center justify-center rounded-full border border-white/10 bg-transparent px-6 py-3 font-medium text-white transition hover:border-white/20">
             Create Account
           </Link>
         </div>

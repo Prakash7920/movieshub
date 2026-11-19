@@ -6,7 +6,7 @@ import { LanguageProvider } from "@/components/providers/language-provider";
 
 export const metadata: Metadata = {
   title: "NexaFilm | One Platform. Every Language. Endless Stories.",
-  description: "Discover a premium legal streaming experience for cinema across Indian languages. Playback is available only for content with verified distribution rights.",
+  description: "Discover a premium legal cinema experience across Indian languages. Playback is available only for content with verified distribution rights.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
 };
 
