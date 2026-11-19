@@ -9,7 +9,8 @@ DECLARE
 BEGIN
   FOREACH app_role IN ARRAY ARRAY[
     'nexafilm_app',
-    'nexafilm_app_test'
+    'nexafilm_app_test',
+    'nexafilm_app_preview'
   ]
   LOOP
     IF EXISTS (
