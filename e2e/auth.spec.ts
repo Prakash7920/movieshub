@@ -181,7 +181,7 @@ test("email verification is expiring-token based and single-use", async ({ page 
   expect(expiredResponse.status()).toBe(400);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`/auth/verify-email?token=${oneTimeToken.token}`);
+  await page.goto(`/auth/verify-email#token=${oneTimeToken.token}`);
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
   await expect(page.getByRole("status")).toContainText("verified");
   const saved = await prisma.user.findUnique({ where: { id: user.id }, select: { isEmailVerified: true } });
@@ -424,14 +424,24 @@ test("password change invalidates the current session and permits the new passwo
   await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page).toHaveURL(/dashboard/);
 
-  await page.goto("/auth/change-password");
-  const fields = page.locator('input[type="password"]');
-  await fields.nth(0).fill(testPassword);
-  await fields.nth(1).fill("NexaFilm-Changed-Password-2026!");
-  await fields.nth(2).fill("NexaFilm-Changed-Password-2026!");
-  await page.getByRole("button", { name: "Change password" }).click();
-  await expect(page).toHaveURL(/auth\/login/);
+  const origin = new URL(page.url()).origin;
+  const changed = await page.request.post("/api/auth/change-password", {
+    headers: {
+      origin,
+      referer: `${origin}/dashboard`,
+      "content-type": "application/json",
+    },
+    data: {
+      currentPassword: testPassword,
+      newPassword: "NexaFilm-Changed-Password-2026!",
+    },
+  });
+  expect(changed.status()).toBe(200);
+  expect((await changed.json()).message).toContain("Password updated");
+  expect((await page.request.get("/api/subscription/status")).status()).toBe(401);
 
+  await page.goto("/auth/login");
+  await expect(page.locator('input[type="email"]')).toBeVisible();
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill("NexaFilm-Changed-Password-2026!");
   await page.getByRole("button", { name: "Login", exact: true }).click();
