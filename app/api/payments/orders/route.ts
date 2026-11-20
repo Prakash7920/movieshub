@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { hasValidJsonContentType, isSameOriginRequest } from "@/lib/security/request-guards";
 import { getSubscriptionPrice } from "@/lib/subscriptions/plans";
-import { createRazorpayOrder, isRazorpayPaymentsAllowed } from "@/lib/payments/razorpay";
+import { createOrRecoverRazorpayOrder, isRazorpayPaymentsAllowed } from "@/lib/payments/razorpay";
 import { logSafeError } from "@/lib/security/safe-log";
 
 export const runtime = "nodejs";
@@ -45,7 +45,28 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Idempotency key was already used for a different checkout." }, { status: 409 });
       }
       if (existing.razorpayOrderId) return NextResponse.json({ paymentId: existing.id, orderId: existing.razorpayOrderId, amount: Math.round(existing.amount * 100), currency: existing.currency, keyId: process.env.RAZORPAY_KEY_ID }, { headers: { "Cache-Control": "no-store" } });
-      return NextResponse.json({ error: "Checkout request is already being processed. Retry shortly with the same key." }, { status: 409, headers: { "Retry-After": "3", "Cache-Control": "no-store" } });
+
+      const recoveredOrder = await createOrRecoverRazorpayOrder({
+        paymentId: existing.id,
+        amountPaise: Math.round(existing.amount * 100),
+        userId,
+      });
+      if (recoveredOrder.status !== "created") {
+        return NextResponse.json({ error: "Existing checkout requires payment reconciliation before retrying." }, { status: 409, headers: { "Cache-Control": "no-store" } });
+      }
+
+      await prisma.payment.updateMany({
+        where: { id: existing.id, razorpayOrderId: null, status: { in: ["PENDING", "FAILED"] } },
+        data: { razorpayOrderId: recoveredOrder.id, status: "PENDING" },
+      });
+      const linkedPayment = await prisma.payment.findUnique({
+        where: { id: existing.id },
+        select: { razorpayOrderId: true, status: true },
+      });
+      if (!linkedPayment || linkedPayment.razorpayOrderId !== recoveredOrder.id || linkedPayment.status !== "PENDING") {
+        return NextResponse.json({ error: "Checkout order could not be safely linked. Retry shortly with the same key." }, { status: 409, headers: { "Retry-After": "3", "Cache-Control": "no-store" } });
+      }
+      return NextResponse.json({ paymentId: existing.id, orderId: recoveredOrder.id, amount: recoveredOrder.amount, currency: recoveredOrder.currency, keyId: process.env.RAZORPAY_KEY_ID }, { headers: { "Cache-Control": "no-store" } });
     }
 
     const payment = await prisma.payment.create({
@@ -53,7 +74,7 @@ export async function POST(request: Request) {
       select: { id: true, amount: true, currency: true },
     });
     createdPaymentId = payment.id;
-    const order = await createRazorpayOrder({ paymentId: payment.id, amountPaise: Math.round(payment.amount * 100), userId });
+    const order = await createOrRecoverRazorpayOrder({ paymentId: payment.id, amountPaise: Math.round(payment.amount * 100), userId });
     await prisma.payment.update({ where: { id: payment.id }, data: { razorpayOrderId: order.id } });
     return NextResponse.json({ paymentId: payment.id, orderId: order.id, amount: order.amount, currency: order.currency, keyId: process.env.RAZORPAY_KEY_ID }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
