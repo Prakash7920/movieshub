@@ -6,6 +6,8 @@ export type CloudflareStreamConfig = {
 
 export type CloudflarePlaybackGrantInput = {
   assetUid: string;
+  /** Must come from trusted asset metadata showing requireSignedURLs=true. */
+  assetRequiresSignedUrls: boolean;
   viewerCountry: string;
   ttlSeconds?: number;
   now?: Date;
@@ -81,7 +83,16 @@ export async function createCloudflareStreamPlaybackGrant(
     );
   }
 
-  const country = input.viewerCountry.trim().toUpperCase();
+  if (input.assetRequiresSignedUrls !== true) {
+    throw new CloudflareStreamDeliveryError(
+      "The Stream asset is not verified as private.",
+      "INVALID_REQUEST",
+    );
+  }
+
+  const country = typeof input.viewerCountry === "string"
+    ? input.viewerCountry.trim().toUpperCase()
+    : "";
   if (!/^[A-Z]{2}$/.test(country)) {
     throw new CloudflareStreamDeliveryError(
       "A verified ISO country code is required.",
