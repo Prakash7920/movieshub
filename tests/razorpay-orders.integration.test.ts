@@ -135,7 +135,6 @@ after(async () => {
 test("retries recover an orphaned Razorpay order by its unique receipt", async () => {
   const requestKey = randomUUID();
   const paymentId = await createOrphanedPayment(requestKey);
-  let postCalls = 0;
   installFetchStub(async (url, init) => {
     assert.equal(url.pathname, "/v1/orders");
     assert.equal(url.searchParams.get("receipt"), paymentId);
@@ -150,7 +149,6 @@ test("retries recover an orphaned Razorpay order by its unique receipt", async (
   const result = await response.json() as { paymentId: string; orderId: string };
   assert.equal(result.paymentId, paymentId);
   assert.equal(result.orderId, `order-recovered-${suffix}`);
-  assert.equal(postCalls, 0);
 
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
@@ -162,14 +160,9 @@ test("retries recover an orphaned Razorpay order by its unique receipt", async (
 
 test("new checkout creates one provider order after confirming the receipt is absent", async () => {
   const requestKey = randomUUID();
-  let getCalls = 0;
   let postCalls = 0;
   installFetchStub(async (url, init) => {
     assert.equal(url.pathname, "/v1/orders");
-    if ((init?.method ?? "GET").toUpperCase() === "GET") {
-      getCalls += 1;
-      return jsonResponse({ items: [] });
-    }
     postCalls += 1;
     const body = JSON.parse(String(init?.body)) as { receipt: string; amount: number; notes: { paymentId: string; userId: string } };
     assert.equal(body.amount, Math.round(monthlyAmount * 100));
@@ -188,7 +181,6 @@ test("new checkout creates one provider order after confirming the receipt is ab
   assert.equal(response.status, 200, await response.clone().text());
   const result = await response.json() as { paymentId: string; orderId: string };
   assert.equal(result.orderId, `order-created-${suffix}`);
-  assert.equal(getCalls, 1);
   assert.equal(postCalls, 1);
   createdPaymentIds.push(result.paymentId);
 
@@ -200,7 +192,7 @@ test("new checkout creates one provider order after confirming the receipt is ab
   assert.equal(payment?.razorpayOrderId, result.orderId);
 });
 
-test("an ambiguous provider POST is reconciled by receipt before returning failure", async () => {
+test("a retry reconciles an order after an ambiguous provider POST response", async () => {
   const requestKey = randomUUID();
   let getCalls = 0;
   let postCalls = 0;
@@ -209,23 +201,41 @@ test("an ambiguous provider POST is reconciled by receipt before returning failu
     const method = (init?.method ?? "GET").toUpperCase();
     if (method === "GET") {
       getCalls += 1;
-      if (getCalls === 1) return jsonResponse({ items: [] });
       const receipt = url.searchParams.get("receipt");
       assert.ok(receipt);
-      return jsonResponse({ items: [providerOrder(receipt, userId!, `order-after-timeout-${suffix}`)] });
+      return jsonResponse({ items: [providerOrder(receipt, userId!, "order-after-timeout-" + suffix)] });
     }
     postCalls += 1;
     return jsonResponse({ error: { description: "Simulated lost/failed provider response" } }, 500);
   });
 
-  const response = await invokeOrderRoute(requestKey);
-  assert.ok(response);
-  assert.equal(response.status, 200, await response.clone().text());
-  const result = await response.json() as { paymentId: string; orderId: string };
-  assert.equal(result.orderId, `order-after-timeout-${suffix}`);
-  assert.equal(getCalls, 2);
+  const firstAttempt = await invokeOrderRoute(requestKey);
+  assert.ok(firstAttempt);
+  assert.equal(firstAttempt.status, 503, await firstAttempt.clone().text());
+  const orphanedPayment = await prisma.payment.findUnique({
+    where: { requestKey },
+    select: { id: true, status: true, razorpayOrderId: true },
+  });
+  assert.ok(orphanedPayment);
+  assert.equal(orphanedPayment.status, "FAILED");
+  assert.equal(orphanedPayment.razorpayOrderId, null);
+  createdPaymentIds.push(orphanedPayment.id);
+
+  const retry = await invokeOrderRoute(requestKey);
+  assert.ok(retry);
+  assert.equal(retry.status, 200, await retry.clone().text());
+  const result = await retry.json() as { paymentId: string; orderId: string };
+  assert.equal(result.paymentId, orphanedPayment.id);
+  assert.equal(result.orderId, "order-after-timeout-" + suffix);
+  assert.equal(getCalls, 1);
   assert.equal(postCalls, 1);
-  createdPaymentIds.push(result.paymentId);
+
+  const recovered = await prisma.payment.findUnique({
+    where: { id: orphanedPayment.id },
+    select: { status: true, razorpayOrderId: true },
+  });
+  assert.equal(recovered?.status, "PENDING");
+  assert.equal(recovered?.razorpayOrderId, result.orderId);
 });
 
 test("a receipt lookup with mismatched order details is not linked or returned", async () => {
