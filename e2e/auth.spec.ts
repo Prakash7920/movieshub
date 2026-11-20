@@ -187,8 +187,17 @@ test("email verification is expiring-token based and single-use", async ({ page 
   const saved = await prisma.user.findUnique({ where: { id: user.id }, select: { isEmailVerified: true } });
   expect(saved?.isEmailVerified).toBe(true);
 
-  await page.goto(`/auth/verify-email#token=${oneTimeToken.token}`);
-  await expect(page.getByRole("status")).toContainText("already used");
+  const origin = new URL(page.url()).origin;
+  const replay = await page.request.post("/api/auth/verify-email", {
+    headers: {
+      origin,
+      referer: `${origin}/auth/verify-email`,
+      "content-type": "application/json",
+    },
+    data: { token: oneTimeToken.token },
+  });
+  expect(replay.status()).toBe(400);
+  expect((await replay.json()).error).toContain("already used");
 });
 
 test("admin APIs reject anonymous and ordinary users, and ignore role escalation at registration", async ({ page, request }) => {
