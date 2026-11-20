@@ -85,6 +85,85 @@ export async function createRazorpayOrder(input: { paymentId: string; amountPais
   return { id: order.id, amount: order.amount as number, currency: "INR", status: "created" };
 }
 
+
+type RazorpayOrderLookup = {
+  id: string;
+  amount: number;
+  currency: string;
+  receipt: string;
+  status: string;
+  attempts: number;
+  notes: Record<string, unknown>;
+};
+
+export async function findRazorpayOrderByReceipt(input: {
+  paymentId: string;
+  amountPaise: number;
+  userId: string;
+}): Promise<RazorpayOrderResponse | null> {
+  const keyId = requiredPaymentEnv("RAZORPAY_KEY_ID");
+  const keySecret = requiredPaymentEnv("RAZORPAY_KEY_SECRET");
+  const url = new URL("https://api.razorpay.com/v1/orders");
+  url.searchParams.set("receipt", input.paymentId);
+  url.searchParams.set("count", "100");
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}` },
+    signal: AbortSignal.timeout(10000),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error("Payment provider order reconciliation failed.");
+
+  const data: unknown = await response.json();
+  if (!data || typeof data !== "object" || !Array.isArray((data as { items?: unknown }).items)) {
+    throw new Error("Payment provider returned an invalid order collection.");
+  }
+
+  const matches = ((data as { items: unknown[] }).items).filter((item): item is Record<string, unknown> =>
+    Boolean(item) && typeof item === "object" && (item as Record<string, unknown>).receipt === input.paymentId
+  );
+  if (matches.length === 0) return null;
+  if (matches.length !== 1) throw new Error("Multiple provider orders matched one local payment receipt.");
+
+  const order = matches[0] as unknown as RazorpayOrderLookup;
+  if (
+    typeof order.id !== "string" ||
+    order.receipt !== input.paymentId ||
+    order.amount !== input.amountPaise ||
+    order.currency !== "INR" ||
+    !order.notes ||
+    typeof order.notes !== "object" ||
+    Array.isArray(order.notes) ||
+    order.notes.paymentId !== input.paymentId ||
+    order.notes.userId !== input.userId ||
+    order.status !== "created" ||
+    order.attempts !== 0
+  ) {
+    throw new Error("Existing provider order does not match a safely recoverable checkout.");
+  }
+
+  return { id: order.id, amount: order.amount, currency: order.currency, status: order.status };
+}
+
+export async function createOrRecoverRazorpayOrder(input: {
+  paymentId: string;
+  amountPaise: number;
+  userId: string;
+}): Promise<RazorpayOrderResponse> {
+  const existing = await findRazorpayOrderByReceipt(input);
+  if (existing) return existing;
+
+  try {
+    return await createRazorpayOrder(input);
+  } catch (creationError) {
+    // The provider may have accepted the POST even when the response was lost.
+    // Reconcile by the unique receipt before deciding that order creation failed.
+    const recovered = await findRazorpayOrderByReceipt(input);
+    if (recovered) return recovered;
+    throw creationError;
+  }
+}
+
 type WebhookPayload = {
   payment?: { entity?: { id?: unknown; order_id?: unknown; amount?: unknown; currency?: unknown; status?: unknown } };
 };
