@@ -188,7 +188,7 @@ test("email verification is expiring-token based and single-use", async ({ page 
   expect(saved?.isEmailVerified).toBe(true);
 
   await page.goto(`/auth/verify-email#token=${oneTimeToken.token}`);
-  await expect(page.locator('p[role="alert"]')).toContainText("already used");
+  await expect(page.getByRole("status")).toContainText("already used");
 });
 
 test("admin APIs reject anonymous and ordinary users, and ignore role escalation at registration", async ({ page, request }) => {
