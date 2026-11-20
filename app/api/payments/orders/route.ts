@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { hasValidJsonContentType, isSameOriginRequest } from "@/lib/security/request-guards";
 import { getSubscriptionPrice } from "@/lib/subscriptions/plans";
-import { createOrRecoverRazorpayOrder, isRazorpayPaymentsAllowed } from "@/lib/payments/razorpay";
+import { createOrRecoverRazorpayOrder, createRazorpayOrder, isRazorpayPaymentsAllowed } from "@/lib/payments/razorpay";
 import { logSafeError } from "@/lib/security/safe-log";
 
 export const runtime = "nodejs";
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       select: { id: true, amount: true, currency: true },
     });
     createdPaymentId = payment.id;
-    const order = await createOrRecoverRazorpayOrder({ paymentId: payment.id, amountPaise: Math.round(payment.amount * 100), userId });
+    const order = await createRazorpayOrder({ paymentId: payment.id, amountPaise: Math.round(payment.amount * 100), userId });
     await prisma.payment.update({ where: { id: payment.id }, data: { razorpayOrderId: order.id } });
     return NextResponse.json({ paymentId: payment.id, orderId: order.id, amount: order.amount, currency: order.currency, keyId: process.env.RAZORPAY_KEY_ID }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
