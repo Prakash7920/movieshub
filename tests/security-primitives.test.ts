@@ -200,3 +200,36 @@ test("Razorpay checkout callback signature binds the exact order and payment IDs
   assert.equal(verifyRazorpayPaymentSignature(orderId, "pay_other", signature, secret), false);
   assert.equal(verifyRazorpayPaymentSignature(orderId, paymentId, null, secret), false);
 });
+
+
+test("same-origin guard uses the external Host and forwarded protocol behind a proxy", () => {
+  const proxiedRequest = new Request("http://next-internal:3000/api/auth/register", {
+    method: "POST",
+    headers: {
+      host: "nexafilm.in",
+      "x-forwarded-proto": "https",
+      origin: "https://nexafilm.in",
+    },
+  });
+  assert.equal(isSameOriginRequest(proxiedRequest), true);
+
+  const foreignOrigin = new Request("http://next-internal:3000/api/auth/register", {
+    method: "POST",
+    headers: {
+      host: "nexafilm.in",
+      "x-forwarded-proto": "https",
+      origin: "https://attacker.example",
+    },
+  });
+  assert.equal(isSameOriginRequest(foreignOrigin), false);
+
+  const mismatchedHost = new Request("http://next-internal:3000/api/auth/register", {
+    method: "POST",
+    headers: {
+      host: "nexafilm.in",
+      "x-forwarded-proto": "https",
+      origin: "http://nexafilm.in",
+    },
+  });
+  assert.equal(isSameOriginRequest(mismatchedHost), false);
+});
