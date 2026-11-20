@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { Check, ShieldCheck } from "lucide-react";
@@ -62,6 +62,7 @@ export default function SubscriptionCheckout({ previewTestModeEnabled }: { previ
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const orderIdempotencyKeys = useRef<Partial<Record<SubscriptionBillingCycle, string>>>({});
 
   const handleCheckout = async (plan: SubscriptionPlanId) => {
     if (plan === "FREE") {
@@ -81,13 +82,15 @@ export default function SubscriptionCheckout({ previewTestModeEnabled }: { previ
     let checkoutOpened = false;
 
     try {
+      const idempotencyKey = orderIdempotencyKeys.current[billing] ?? crypto.randomUUID();
+      orderIdempotencyKeys.current[billing] = idempotencyKey;
       const orderResponse = await fetch("/api/payments/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           plan: "PREMIUM",
           billingCycle: billing,
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey,
         }),
       });
       const order = await orderResponse.json().catch(() => null) as OrderResponse | null;
@@ -126,6 +129,7 @@ export default function SubscriptionCheckout({ previewTestModeEnabled }: { previ
             if (!verificationResponse.ok || verification?.verified !== true) {
               throw new Error(verification?.error || "Payment verification did not complete.");
             }
+            delete orderIdempotencyKeys.current[billing];
             setNotice("Test payment verified. Your Preview subscription status has been updated.");
             router.refresh();
           } catch (verificationError) {
