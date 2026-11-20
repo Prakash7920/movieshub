@@ -92,7 +92,7 @@ test("rejects invalid asset identifiers before making a provider request", async
   await assert.rejects(
     () =>
       createCloudflareStreamPlaybackGrant(
-        { assetUid: "raw-video-url", viewerCountry: "IN", now: fixedNow },
+        { assetUid: "raw-video-url", assetRequiresSignedUrls: true, viewerCountry: "IN", now: fixedNow },
         config,
         fetcher,
       ),
