@@ -187,7 +187,7 @@ test("email verification is expiring-token based and single-use", async ({ page 
   const saved = await prisma.user.findUnique({ where: { id: user.id }, select: { isEmailVerified: true } });
   expect(saved?.isEmailVerified).toBe(true);
 
-  await page.goto(`/auth/verify-email?token=${oneTimeToken.token}`);
+  await page.goto(`/auth/verify-email#token=${oneTimeToken.token}`);
   await expect(page.locator('p[role="alert"]')).toContainText("already used");
 });
 
