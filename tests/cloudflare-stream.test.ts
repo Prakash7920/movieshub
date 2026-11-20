@@ -38,7 +38,7 @@ test("creates a short-lived HLS grant bound to the verified viewer country", asy
   };
 
   const grant = await createCloudflareStreamPlaybackGrant(
-    { assetUid, viewerCountry: "in", now: fixedNow },
+    { assetUid, assetRequiresSignedUrls: true, viewerCountry: "in", now: fixedNow },
     config,
     fetcher,
   );
@@ -74,7 +74,7 @@ test("accepts a custom short lifetime within the configured bounds", async () =>
     response({ success: true, result: { token: signedToken } });
 
   const grant = await createCloudflareStreamPlaybackGrant(
-    { assetUid, viewerCountry: "GB", ttlSeconds: 900, now: fixedNow },
+    { assetUid, assetRequiresSignedUrls: true, viewerCountry: "GB", ttlSeconds: 900, now: fixedNow },
     config,
     fetcher,
   );
@@ -103,6 +103,33 @@ test("rejects invalid asset identifiers before making a provider request", async
   assert.equal(called, false);
 });
 
+
+test("refuses to mint a token unless trusted metadata confirms requireSignedURLs is enabled", async () => {
+  let called = false;
+  const fetcher: CloudflareFetch = async () => {
+    called = true;
+    return response({ success: true, result: { token: signedToken } });
+  };
+
+  await assert.rejects(
+    () =>
+      createCloudflareStreamPlaybackGrant(
+        {
+          assetUid,
+          assetRequiresSignedUrls: false,
+          viewerCountry: "IN",
+          now: fixedNow,
+        },
+        config,
+        fetcher,
+      ),
+    (error: unknown) =>
+      error instanceof CloudflareStreamDeliveryError &&
+      error.code === "INVALID_REQUEST",
+  );
+  assert.equal(called, false);
+});
+
 test("rejects an unverified viewer country before making a provider request", async () => {
   let called = false;
   const fetcher: CloudflareFetch = async () => {
@@ -113,7 +140,7 @@ test("rejects an unverified viewer country before making a provider request", as
   await assert.rejects(
     () =>
       createCloudflareStreamPlaybackGrant(
-        { assetUid, viewerCountry: "", now: fixedNow },
+        { assetUid, assetRequiresSignedUrls: true, viewerCountry: "", now: fixedNow },
         config,
         fetcher,
       ),
@@ -132,7 +159,7 @@ test("rejects lifetimes below one minute, above fifteen minutes, and non-integer
     await assert.rejects(
       () =>
         createCloudflareStreamPlaybackGrant(
-          { assetUid, viewerCountry: "IN", ttlSeconds, now: fixedNow },
+          { assetUid, assetRequiresSignedUrls: true, viewerCountry: "IN", ttlSeconds, now: fixedNow },
           config,
           fetcher,
         ),
@@ -150,7 +177,7 @@ test("rejects unsafe provider configuration", async () => {
   await assert.rejects(
     () =>
       createCloudflareStreamPlaybackGrant(
-        { assetUid, viewerCountry: "IN", now: fixedNow },
+        { assetUid, assetRequiresSignedUrls: true, viewerCountry: "IN", now: fixedNow },
         { ...config, apiToken: "bad\ntoken" },
         fetcher,
       ),
@@ -167,7 +194,7 @@ test("fails closed on provider HTTP errors without exposing provider response co
   await assert.rejects(
     () =>
       createCloudflareStreamPlaybackGrant(
-        { assetUid, viewerCountry: "IN", now: fixedNow },
+        { assetUid, assetRequiresSignedUrls: true, viewerCountry: "IN", now: fixedNow },
         config,
         fetcher,
       ),
@@ -190,7 +217,7 @@ test("fails closed when the provider response is unsuccessful or has no signed t
     await assert.rejects(
       () =>
         createCloudflareStreamPlaybackGrant(
-          { assetUid, viewerCountry: "IN", now: fixedNow },
+          { assetUid, assetRequiresSignedUrls: true, viewerCountry: "IN", now: fixedNow },
           config,
           fetcher,
         ),
@@ -209,7 +236,7 @@ test("does not leak credentials or provider details when the fetch call fails", 
   await assert.rejects(
     () =>
       createCloudflareStreamPlaybackGrant(
-        { assetUid, viewerCountry: "IN", now: fixedNow },
+        { assetUid, assetRequiresSignedUrls: true, viewerCountry: "IN", now: fixedNow },
         config,
         fetcher,
       ),
@@ -228,7 +255,7 @@ test("does not allow public downloads in the signed token request", async () => 
   };
 
   await createCloudflareStreamPlaybackGrant(
-    { assetUid, viewerCountry: "IN", now: fixedNow },
+    { assetUid, assetRequiresSignedUrls: true, viewerCountry: "IN", now: fixedNow },
     config,
     fetcher,
   );
