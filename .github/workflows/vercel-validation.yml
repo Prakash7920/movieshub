@@ -67,3 +67,17 @@ jobs:
           NEXT_PUBLIC_APP_URL: https://example.vercel.app
           DEMO_MODE: "false"
         run: npm run build
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Browser end-to-end tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/movieshub_test
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/movieshub_test
+          MOVIESHUB_E2E: "true"
+          RATE_LIMIT_SECRET: ci-only-rate-limit-secret-value-with-more-than-32-characters
+          CRON_SECRET: ci-only-cron-secret-value-with-more-than-32-characters
+          NEXTAUTH_SECRET: ci-only-secret-value-with-more-than-32-characters
+          NEXTAUTH_URL: http://127.0.0.1:3000
+          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+          DEMO_MODE: "false"
+        run: npm run test:e2e
