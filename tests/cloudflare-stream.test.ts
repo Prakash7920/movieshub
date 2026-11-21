@@ -27,32 +27,74 @@ function response(
   };
 }
 
-test("creates a short-lived HLS grant bound to the verified viewer country", async () => {
-  let requestedUrl = "";
-  let requestInit: RequestInit | undefined;
-
-  const fetcher: CloudflareFetch = async (url, init) => {
-    requestedUrl = url;
-    requestInit = init;
-    return response({ success: true, result: { token: signedToken } });
+function privateAssetDetails(overrides: Record<string, unknown> = {}) {
+  return {
+    success: true,
+    result: {
+      uid: assetUid,
+      requireSignedURLs: true,
+      readyToStream: true,
+      ...overrides,
+    },
   };
+}
+
+function successfulFetcher(options: {
+  tokenPayload?: unknown;
+  tokenHttp?: { ok?: boolean; status?: number };
+  onTokenRequest?: (url: string, init: RequestInit) => void;
+  assetPayload?: unknown;
+  onAssetRequest?: (url: string, init: RequestInit) => void;
+} = {}): CloudflareFetch {
+  return async (url, init) => {
+    if (init.method === "GET") {
+      options.onAssetRequest?.(url, init);
+      return response(
+        options.assetPayload ?? privateAssetDetails(),
+      );
+    }
+
+    options.onTokenRequest?.(url, init);
+    return response(
+      options.tokenPayload ?? { success: true, result: { token: signedToken } },
+      options.tokenHttp,
+    );
+  };
+}
+
+test("verifies private ready asset metadata before issuing a short-lived country-bound HLS grant", async () => {
+  const calls: Array<{ url: string; method: string | undefined }> = [];
+  let tokenRequestInit: RequestInit | undefined;
+
+  const fetcher = successfulFetcher({
+    onAssetRequest: (url, init) => calls.push({ url, method: init.method }),
+    onTokenRequest: (url, init) => {
+      calls.push({ url, method: init.method });
+      tokenRequestInit = init;
+    },
+  });
 
   const grant = await createCloudflareStreamPlaybackGrant(
-    { assetUid, assetRequiresSignedUrls: true, viewerCountry: "in", now: fixedNow },
+    { assetUid, viewerCountry: "in", now: fixedNow },
     config,
     fetcher,
   );
 
+  assert.deepEqual(calls, [
+    {
+      url: `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${assetUid}`,
+      method: "GET",
+    },
+    {
+      url: `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${assetUid}/token`,
+      method: "POST",
+    },
+  ]);
   assert.equal(
-    requestedUrl,
-    `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${assetUid}/token`,
-  );
-  assert.equal(requestInit?.method, "POST");
-  assert.equal(
-    (requestInit?.headers as Record<string, string>).Authorization,
+    (tokenRequestInit?.headers as Record<string, string>).Authorization,
     `Bearer ${config.apiToken}`,
   );
-  assert.deepEqual(JSON.parse(String(requestInit?.body)), {
+  assert.deepEqual(JSON.parse(String(tokenRequestInit?.body)), {
     exp: Math.floor(fixedNow.getTime() / 1000) + 300,
     downloadable: false,
     accessRules: [
@@ -70,13 +112,10 @@ test("creates a short-lived HLS grant bound to the verified viewer country", asy
 });
 
 test("accepts a custom short lifetime within the configured bounds", async () => {
-  const fetcher: CloudflareFetch = async () =>
-    response({ success: true, result: { token: signedToken } });
-
   const grant = await createCloudflareStreamPlaybackGrant(
-    { assetUid, assetRequiresSignedUrls: true, viewerCountry: "GB", ttlSeconds: 900, now: fixedNow },
+    { assetUid, viewerCountry: "GB", ttlSeconds: 900, now: fixedNow },
     config,
-    fetcher,
+    successfulFetcher(),
   );
 
   assert.equal(grant.expiresAt, "2026-11-20T12:15:00.000Z");
@@ -86,13 +125,13 @@ test("rejects invalid asset identifiers before making a provider request", async
   let called = false;
   const fetcher: CloudflareFetch = async () => {
     called = true;
-    return response({ success: true, result: { token: signedToken } });
+    return response(privateAssetDetails());
   };
 
   await assert.rejects(
     () =>
       createCloudflareStreamPlaybackGrant(
-        { assetUid: "raw-video-url", assetRequiresSignedUrls: true, viewerCountry: "IN", now: fixedNow },
+        { assetUid: "raw-video-url", viewerCountry: "IN", now: fixedNow },
         config,
         fetcher,
       ),
@@ -103,44 +142,86 @@ test("rejects invalid asset identifiers before making a provider request", async
   assert.equal(called, false);
 });
 
-
-test("refuses to mint a token unless trusted metadata confirms requireSignedURLs is enabled", async () => {
-  let called = false;
-  const fetcher: CloudflareFetch = async () => {
-    called = true;
-    return response({ success: true, result: { token: signedToken } });
-  };
+test("refuses to mint a token unless provider metadata confirms requireSignedURLs is enabled", async () => {
+  let tokenCalled = false;
+  const fetcher = successfulFetcher({
+    assetPayload: privateAssetDetails({ requireSignedURLs: false }),
+    onTokenRequest: () => {
+      tokenCalled = true;
+    },
+  });
 
   await assert.rejects(
     () =>
       createCloudflareStreamPlaybackGrant(
-        {
-          assetUid,
-          assetRequiresSignedUrls: false,
-          viewerCountry: "IN",
-          now: fixedNow,
-        },
+        { assetUid, viewerCountry: "IN", now: fixedNow },
         config,
         fetcher,
       ),
     (error: unknown) =>
       error instanceof CloudflareStreamDeliveryError &&
-      error.code === "INVALID_REQUEST",
+      error.code === "ASSET_NOT_PRIVATE",
   );
-  assert.equal(called, false);
+  assert.equal(tokenCalled, false);
+});
+
+test("refuses to mint a token until Cloudflare reports the asset ready to stream", async () => {
+  let tokenCalled = false;
+  const fetcher = successfulFetcher({
+    assetPayload: privateAssetDetails({ readyToStream: false }),
+    onTokenRequest: () => {
+      tokenCalled = true;
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      createCloudflareStreamPlaybackGrant(
+        { assetUid, viewerCountry: "IN", now: fixedNow },
+        config,
+        fetcher,
+      ),
+    (error: unknown) =>
+      error instanceof CloudflareStreamDeliveryError &&
+      error.code === "ASSET_NOT_READY",
+  );
+  assert.equal(tokenCalled, false);
+});
+
+test("rejects a mismatched provider asset UID", async () => {
+  let tokenCalled = false;
+  const fetcher = successfulFetcher({
+    assetPayload: privateAssetDetails({ uid: "ffffffffffffffffffffffffffffffff" }),
+    onTokenRequest: () => {
+      tokenCalled = true;
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      createCloudflareStreamPlaybackGrant(
+        { assetUid, viewerCountry: "IN", now: fixedNow },
+        config,
+        fetcher,
+      ),
+    (error: unknown) =>
+      error instanceof CloudflareStreamDeliveryError &&
+      error.code === "ASSET_NOT_PRIVATE",
+  );
+  assert.equal(tokenCalled, false);
 });
 
 test("rejects an unverified viewer country before making a provider request", async () => {
   let called = false;
   const fetcher: CloudflareFetch = async () => {
     called = true;
-    return response({ success: true, result: { token: signedToken } });
+    return response(privateAssetDetails());
   };
 
   await assert.rejects(
     () =>
       createCloudflareStreamPlaybackGrant(
-        { assetUid, assetRequiresSignedUrls: true, viewerCountry: "", now: fixedNow },
+        { assetUid, viewerCountry: "", now: fixedNow },
         config,
         fetcher,
       ),
@@ -152,14 +233,13 @@ test("rejects an unverified viewer country before making a provider request", as
 });
 
 test("rejects lifetimes below one minute, above fifteen minutes, and non-integers", async () => {
-  const fetcher: CloudflareFetch = async () =>
-    response({ success: true, result: { token: signedToken } });
+  const fetcher = successfulFetcher();
 
   for (const ttlSeconds of [59, 901, 60.5]) {
     await assert.rejects(
       () =>
         createCloudflareStreamPlaybackGrant(
-          { assetUid, assetRequiresSignedUrls: true, viewerCountry: "IN", ttlSeconds, now: fixedNow },
+          { assetUid, viewerCountry: "IN", ttlSeconds, now: fixedNow },
           config,
           fetcher,
         ),
@@ -171,13 +251,12 @@ test("rejects lifetimes below one minute, above fifteen minutes, and non-integer
 });
 
 test("rejects unsafe provider configuration", async () => {
-  const fetcher: CloudflareFetch = async () =>
-    response({ success: true, result: { token: signedToken } });
+  const fetcher = successfulFetcher();
 
   await assert.rejects(
     () =>
       createCloudflareStreamPlaybackGrant(
-        { assetUid, assetRequiresSignedUrls: true, viewerCountry: "IN", now: fixedNow },
+        { assetUid, viewerCountry: "IN", now: fixedNow },
         { ...config, apiToken: "bad\ntoken" },
         fetcher,
       ),
@@ -187,14 +266,35 @@ test("rejects unsafe provider configuration", async () => {
   );
 });
 
-test("fails closed on provider HTTP errors without exposing provider response content", async () => {
-  const fetcher: CloudflareFetch = async () =>
-    response({ secret: "do-not-return" }, { ok: false, status: 403 });
+test("fails closed when Cloudflare asset details cannot be retrieved", async () => {
+  const fetcher: CloudflareFetch = async () => {
+    throw new Error("provider request failed with test-api-token");
+  };
 
   await assert.rejects(
     () =>
       createCloudflareStreamPlaybackGrant(
-        { assetUid, assetRequiresSignedUrls: true, viewerCountry: "IN", now: fixedNow },
+        { assetUid, viewerCountry: "IN", now: fixedNow },
+        config,
+        fetcher,
+      ),
+    (error: unknown) =>
+      error instanceof CloudflareStreamDeliveryError &&
+      error.code === "PROVIDER_REJECTED" &&
+      !error.message.includes(config.apiToken),
+  );
+});
+
+test("fails closed on token endpoint HTTP errors without exposing provider response content", async () => {
+  const fetcher = successfulFetcher({
+    tokenPayload: { secret: "do-not-return" },
+    tokenHttp: { ok: false, status: 403 },
+  });
+
+  await assert.rejects(
+    () =>
+      createCloudflareStreamPlaybackGrant(
+        { assetUid, viewerCountry: "IN", now: fixedNow },
         config,
         fetcher,
       ),
@@ -213,11 +313,11 @@ test("fails closed when the provider response is unsuccessful or has no signed t
   ];
 
   for (const payload of invalidPayloads) {
-    const fetcher: CloudflareFetch = async () => response(payload);
+    const fetcher = successfulFetcher({ tokenPayload: payload });
     await assert.rejects(
       () =>
         createCloudflareStreamPlaybackGrant(
-          { assetUid, assetRequiresSignedUrls: true, viewerCountry: "IN", now: fixedNow },
+          { assetUid, viewerCountry: "IN", now: fixedNow },
           config,
           fetcher,
         ),
@@ -228,34 +328,16 @@ test("fails closed when the provider response is unsuccessful or has no signed t
   }
 });
 
-test("does not leak credentials or provider details when the fetch call fails", async () => {
-  const fetcher: CloudflareFetch = async () => {
-    throw new Error("provider request failed with test-api-token");
-  };
-
-  await assert.rejects(
-    () =>
-      createCloudflareStreamPlaybackGrant(
-        { assetUid, assetRequiresSignedUrls: true, viewerCountry: "IN", now: fixedNow },
-        config,
-        fetcher,
-      ),
-    (error: unknown) =>
-      error instanceof CloudflareStreamDeliveryError &&
-      error.code === "PROVIDER_REJECTED" &&
-      !error.message.includes(config.apiToken),
-  );
-});
-
 test("does not allow public downloads in the signed token request", async () => {
   let requestBody: Record<string, unknown> | undefined;
-  const fetcher: CloudflareFetch = async (_url, init) => {
-    requestBody = JSON.parse(String(init.body)) as Record<string, unknown>;
-    return response({ success: true, result: { token: signedToken } });
-  };
+  const fetcher = successfulFetcher({
+    onTokenRequest: (_url, init) => {
+      requestBody = JSON.parse(String(init.body)) as Record<string, unknown>;
+    },
+  });
 
   await createCloudflareStreamPlaybackGrant(
-    { assetUid, assetRequiresSignedUrls: true, viewerCountry: "IN", now: fixedNow },
+    { assetUid, viewerCountry: "IN", now: fixedNow },
     config,
     fetcher,
   );
