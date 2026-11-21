@@ -255,7 +255,7 @@ test("recovers from an initial grant failure with one guarded retry and a fresh 
     await route.fulfill({
       status: 200,
       contentType: "application/vnd.apple.mpegurl",
-      body: ["#EXTM3U", "#EXT-X-ENDLIST"].join("\\n"),
+      body: ["#EXTM3U", "#EXT-X-ENDLIST"].join("\n"),
     });
   });
 
