@@ -62,7 +62,7 @@ export function VideoPlayer({
     let hlsInstance: import("hls.js").default | null = null;
     let HlsConstructor: typeof import("hls.js").default | null = null;
     let nativeHls = false;
-    let refreshTimer: ReturnType<typeof window.setTimeout> | null = null;
+    let refreshTimer: number | null = null;
 
     async function requestPlaybackGrant(): Promise<PlaybackGrant> {
       const response = await fetch(
