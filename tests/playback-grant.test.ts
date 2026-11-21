@@ -32,8 +32,10 @@ test("normalizes an accepted manifest URL and expiry", () => {
   const grant = parsePlaybackGrant(
     {
       ...validGrant,
-      manifestUrl:
-        "https://customer-testcustomer123.cloudflarestream.com/header.payload.signature/manifest/video.m3u8",
+      manifestUrl: validGrant.manifestUrl.replace(
+        "customer-testcustomer123",
+        "CUSTOMER-TESTCUSTOMER123",
+      ),
     },
     now,
   );
@@ -157,9 +159,14 @@ test("rejects malformed tokens, unexpected algorithms, and missing expiry claims
 });
 
 test("rejects grants with expiry beyond the short-lived window", () => {
+  const expiry = now + 17 * 60 * 1000;
   assert.equal(
     parsePlaybackGrant(
-      { ...validGrant, expiresAt: new Date(now + 17 * 60 * 1000).toISOString() },
+      {
+        protocol: "hls",
+        manifestUrl: `https://customer-testcustomer123.cloudflarestream.com/${signedTokenForExpiry(expiry)}/manifest/video.m3u8`,
+        expiresAt: new Date(expiry).toISOString(),
+      },
       now,
     ),
     null,
@@ -167,10 +174,12 @@ test("rejects grants with expiry beyond the short-lived window", () => {
 });
 
 test("accepts the provider's maximum approved fifteen-minute grant lifetime", () => {
+  const expiry = now + 15 * 60 * 1000;
   const grant = parsePlaybackGrant(
     {
-      ...validGrant,
-      expiresAt: new Date(now + 15 * 60 * 1000).toISOString(),
+      protocol: "hls",
+      manifestUrl: `https://customer-testcustomer123.cloudflarestream.com/${signedTokenForExpiry(expiry)}/manifest/video.m3u8`,
+      expiresAt: new Date(expiry).toISOString(),
     },
     now,
   );
