@@ -216,3 +216,81 @@ test("stops playback and clears the old source when a renewal request fails", as
   expect(grantRequests).toBe(2);
   await expect(page.getByText("Secure playback could not be started.", { exact: false })).toBeVisible();
 });
+
+
+test("recovers from an initial grant failure with one guarded retry and a fresh grant", async ({ page }) => {
+  const clockStart = new Date();
+  const customerHost = "https://customer-mockcustomer.cloudflarestream.com";
+  let grantRequests = 0;
+  const manifestRequests: string[] = [];
+  const recoveredGrant = {
+    protocol: "hls",
+    manifestUrl: `${customerHost}/header.retry-recovered.signature/manifest/video.m3u8`,
+    expiresAt: new Date(clockStart.getTime() + 5 * 60_000).toISOString(),
+  };
+
+  await page.clock.install({ time: clockStart });
+  await installNativeFailureMock(page);
+
+  await page.route("**/api/media/mocked-retry-recovery", async (route) => {
+    grantRequests += 1;
+    if (grantRequests === 1) {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ code: "MOCK_INITIAL_GRANT_UNAVAILABLE" }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "Cache-Control": "private, no-store, max-age=0" },
+      body: JSON.stringify(recoveredGrant),
+    });
+  });
+  await page.route(`${customerHost}/**`, async (route) => {
+    manifestRequests.push(route.request().url());
+    await route.fulfill({
+      status: 200,
+      contentType: "application/vnd.apple.mpegurl",
+      body: ["#EXTM3U", "#EXT-X-ENDLIST"].join("\\n"),
+    });
+  });
+
+  await page.goto("/watch/mocked-retry-recovery");
+  const video = page.locator("video[aria-label='Mocked Retry Recovery video player']");
+  await expect(video).toBeVisible();
+  await expect.poll(() => grantRequests, { timeout: 10_000 }).toBe(1);
+  await expect(page.getByText("Secure playback could not be started.", { exact: false })).toBeVisible();
+
+  const retryButton = page.getByRole("button", { name: "Retry playback" });
+  await expect(retryButton).toBeVisible();
+
+  // Dispatch two clicks in one browser task to exercise the retry latch.
+  await retryButton.evaluate((button) => {
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+
+  await expect.poll(() => grantRequests, { timeout: 10_000 }).toBe(2);
+  await expect(page.getByText("Secure stream ready.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry playback" })).toHaveCount(0);
+
+  const recoveredState = await page.evaluate(() => ({
+    source: window.__nexafilmNativeFailureMock?.source ?? "",
+    sourceAssignments: window.__nexafilmNativeFailureMock?.sourceAssignments ?? [],
+    paused: window.__nexafilmNativeFailureMock?.paused ?? true,
+    loadCalls: window.__nexafilmNativeFailureMock?.loadCalls ?? 0,
+  }));
+  expect(recoveredState.source).toContain("header.retry-recovered.signature");
+  expect(recoveredState.sourceAssignments).toContain(recoveredGrant.manifestUrl);
+  expect(recoveredState.paused).toBe(true);
+  expect(recoveredState.loadCalls).toBeGreaterThan(0);
+  expect(grantRequests).toBe(2);
+  expect(manifestRequests.length).toBeLessThanOrEqual(1);
+
+  await page.clock.fastForward(60_000);
+  expect(grantRequests).toBe(2);
+});
