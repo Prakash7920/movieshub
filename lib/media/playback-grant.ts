@@ -1,3 +1,5 @@
+import { getCloudflareSignedTokenExpirySeconds } from "@/lib/media/cloudflare-token-expiry";
+
 export type PlaybackGrant = {
   protocol: "hls";
   manifestUrl: string;
@@ -53,10 +55,16 @@ export function parsePlaybackGrant(
   }
 
   const expiry = Date.parse(value.expiresAt);
+  const tokenExpirySeconds = getCloudflareSignedTokenExpirySeconds(
+    url.pathname.split("/")[1]?.split(".").slice(0, 3).join("."),
+  );
   if (
     !Number.isFinite(expiry) ||
     expiry <= now ||
-    expiry > now + MAX_ACCEPTED_GRANT_LIFETIME_MS
+    expiry > now + MAX_ACCEPTED_GRANT_LIFETIME_MS ||
+    expiry % 1000 !== 0 ||
+    tokenExpirySeconds === null ||
+    tokenExpirySeconds * 1000 !== expiry
   ) {
     return null;
   }
