@@ -241,32 +241,36 @@ test("authorized title returns only the short-lived Cloudflare manifest grant", 
   assert.equal(JSON.stringify(result.body).includes("private-origin"), false);
 });
 
-test("legacy raw videoUrl is not part of the playback lookup contract", async () => {
-  let requestedFields: string[] = [];
+test("legacy raw videoUrl is ignored and never returned to the playback client", async () => {
+  const legacyMovieRecord = {
+    isPublished: true,
+    contentStatus: "PUBLISHED",
+    movieType: "FREE" as const,
+    cloudflareStreamUid: validAssetUid,
+    videoUrl: "https://private-origin.invalid/secret/master.m3u8",
+    license: {
+      status: "ACTIVE",
+      startDate: new Date("2026-01-01T00:00:00.000Z"),
+      expiryDate: new Date("2027-01-01T00:00:00.000Z"),
+      allowedCountries: ["IN"],
+    },
+  };
+
   const result = await authorizePlaybackRequest(
     { userId: "user-1", slug: "sample-title", viewerCountry: "IN" },
     enabledDependencies({
-      findMovie: async () => {
-        requestedFields = ["isPublished", "contentStatus", "movieType", "cloudflareStreamUid", "license"];
-        return {
-          isPublished: true,
-          contentStatus: "PUBLISHED",
-          movieType: "FREE",
-          cloudflareStreamUid: validAssetUid,
-          license: {
-            status: "ACTIVE",
-            startDate: new Date("2026-01-01T00:00:00.000Z"),
-            expiryDate: new Date("2027-01-01T00:00:00.000Z"),
-            allowedCountries: ["IN"],
-          },
-        };
+      findMovie: async () => legacyMovieRecord,
+      createPlaybackGrant: async (assetUid) => {
+        assert.equal(assetUid, validAssetUid);
+        return expectedGrant;
       },
     }),
   );
-  assert.equal(result.status, 200);
-  assert.equal(requestedFields.includes("videoUrl"), false);
-});
 
+  assert.equal(result.status, 200);
+  assert.equal(JSON.stringify(result.body).includes(legacyMovieRecord.videoUrl), false);
+  assert.deepEqual(result.body, expectedGrant);
+});
 test("provider errors return a generic 503 without exposing provider details", async () => {
   const result = await authorizePlaybackRequest(
     { userId: "user-1", slug: "sample-title", viewerCountry: "IN" },
