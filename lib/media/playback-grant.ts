@@ -1,4 +1,4 @@
-import { getCloudflareSignedTokenExpirySeconds } from "@/lib/media/cloudflare-token-expiry";
+import { getCloudflareSignedTokenExpirySeconds } from "./cloudflare-token-expiry";
 
 export type PlaybackGrant = {
   protocol: "hls";
@@ -55,9 +55,8 @@ export function parsePlaybackGrant(
   }
 
   const expiry = Date.parse(value.expiresAt);
-  const tokenExpirySeconds = getCloudflareSignedTokenExpirySeconds(
-    url.pathname.split("/")[1]?.split(".").slice(0, 3).join("."),
-  );
+  const signedToken = url.pathname.split("/")[1] ?? "";
+  const tokenExpirySeconds = getCloudflareSignedTokenExpirySeconds(signedToken);
   if (
     !Number.isFinite(expiry) ||
     expiry <= now ||
