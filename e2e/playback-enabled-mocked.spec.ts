@@ -1,3 +1,4 @@
+import { createMockPlaybackGrant } from "./playback-grant-fixture";
 import { expect, test } from "@playwright/test";
 
 type MockPlaybackState = {
@@ -15,24 +16,16 @@ declare global {
 
 test("renews a mocked HLS grant and restores playback position without contacting a provider", async ({ page }) => {
   const clockStart = new Date();
-  const firstGrantExpiry = new Date(clockStart.getTime() + 36_000).toISOString();
-  const secondGrantExpiry = new Date(clockStart.getTime() + 5 * 60_000).toISOString();
+  const firstGrantExpiry = new Date(clockStart.getTime() + 36_000);
+  const secondGrantExpiry = new Date(clockStart.getTime() + 5 * 60_000);
   const customerHost = "https://customer-mockcustomer.cloudflarestream.com";
   const manifestUrls: string[] = [];
   let segmentRequests = 0;
   let grantRequests = 0;
 
   const grants = [
-    {
-      protocol: "hls",
-      manifestUrl: `${customerHost}/header.initial.signature/manifest/video.m3u8`,
-      expiresAt: firstGrantExpiry,
-    },
-    {
-      protocol: "hls",
-      manifestUrl: `${customerHost}/header.refreshed.signature/manifest/video.m3u8`,
-      expiresAt: secondGrantExpiry,
-    },
+    createMockPlaybackGrant(customerHost, firstGrantExpiry, "initial"),
+    createMockPlaybackGrant(customerHost, secondGrantExpiry, "refreshed"),
   ];
 
   await page.clock.install({ time: clockStart });
@@ -139,8 +132,8 @@ test("renews a mocked HLS grant and restores playback position without contactin
 
   await expect.poll(() => grantRequests, { timeout: 10_000 }).toBe(2);
   await expect.poll(() => manifestUrls.length, { timeout: 10_000 }).toBe(2);
-  expect(manifestUrls[0]).toContain("header.initial.signature");
-  expect(manifestUrls[1]).toContain("header.refreshed.signature");
+  expect(manifestUrls[0]).toBe(grants[0].manifestUrl);
+  expect(manifestUrls[1]).toBe(grants[1].manifestUrl);
 
   await expect.poll(
     () =>
