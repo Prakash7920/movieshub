@@ -20,8 +20,15 @@ export type PlaybackGrantFailureReason =
   | "EXPIRED"
   | "LIFETIME_EXCEEDED";
 
+const verifiedGrantBrand: unique symbol = Symbol("verifiedPlaybackGrant");
+
+type VerifiedPlaybackGrant = {
+  readonly claims: PlaybackGrantClaims;
+  readonly [verifiedGrantBrand]: true;
+};
+
 export type PlaybackGrantVerification =
-  | { valid: true; claims: PlaybackGrantClaims }
+  | { valid: true; grant: VerifiedPlaybackGrant }
   | { valid: false; reason: PlaybackGrantFailureReason };
 
 function invalidGrant(reason: PlaybackGrantFailureReason): PlaybackGrantVerification {
@@ -128,10 +135,13 @@ export function verifySignedPlaybackGrant(
     return invalidGrant("LIFETIME_EXCEEDED");
   }
 
-  return {
-    valid: true,
-    claims: { sub, movieId, countryCode, iat, exp },
-  };
+  const verifiedGrant = Object.defineProperty(
+    { claims: { sub, movieId, countryCode, iat, exp } },
+    verifiedGrantBrand,
+    { value: true, enumerable: false },
+  ) as VerifiedPlaybackGrant;
+
+  return { valid: true, grant: verifiedGrant };
 }
 
 export type PlaybackAuthorizationFailureReason =
@@ -195,8 +205,9 @@ export function evaluatePlaybackAuthorization(
   if (!input.grant.valid) {
     return deny(input.grant.reason === "EXPIRED" ? "GRANT_EXPIRED" : "GRANT_INVALID");
   }
+  if (input.grant.grant[verifiedGrantBrand] !== true) return deny("GRANT_INVALID");
 
-  const claims = input.grant.claims;
+  const claims = input.grant.grant.claims;
   if (claims.exp * 1000 <= nowMs) return deny("GRANT_EXPIRED");
   if (
     claims.iat * 1000 > nowMs ||
