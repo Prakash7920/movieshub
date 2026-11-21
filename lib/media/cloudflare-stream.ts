@@ -1,3 +1,5 @@
+import { getCloudflareSignedTokenExpirySeconds } from "@/lib/media/cloudflare-token-expiry";
+
 export type CloudflareStreamConfig = {
   accountId: string;
   apiToken: string;
@@ -242,6 +244,14 @@ export async function createCloudflareStreamPlaybackGrant(
   ) {
     throw new CloudflareStreamDeliveryError(
       "Cloudflare Stream did not return a valid signed token.",
+      "INVALID_PROVIDER_RESPONSE",
+    );
+  }
+
+  const tokenExpirySeconds = getCloudflareSignedTokenExpirySeconds(token);
+  if (tokenExpirySeconds !== expiresAtSeconds) {
+    throw new CloudflareStreamDeliveryError(
+      "Cloudflare Stream returned a token with an unexpected expiry.",
       "INVALID_PROVIDER_RESPONSE",
     );
   }
