@@ -116,7 +116,7 @@ test("unmount clears native media source and cancels the scheduled refresh timer
   );
   expect(configuredSource).toContain("header.lifecycle.signature");
 
-  await page.goto("/");
+  await page.getByRole("link", { name: "NexaFilm home" }).click();
   await expect(page.locator("video")).toHaveCount(0);
 
   const cleanupState = await page.evaluate(() => ({
@@ -177,7 +177,7 @@ test("unmount aborts a pending initial playback-grant request", async ({ page })
     (request) => request.url().endsWith("/api/media/mocked-lifecycle-initial-pending"),
   );
   await started;
-  await page.goto("/");
+  await page.getByRole("link", { name: "NexaFilm home" }).click();
   const failedRequest = await requestAborted;
   expect(failedRequest.failure()).not.toBeNull();
 
@@ -247,7 +247,7 @@ test("unmount aborts an in-flight refresh request and prevents further refreshes
     "requestfailed",
     (request) => request.url().endsWith("/api/media/mocked-lifecycle-refresh-pending"),
   );
-  await page.goto("/");
+  await page.getByRole("link", { name: "NexaFilm home" }).click();
   const failedRequest = await requestAborted;
   expect(failedRequest.failure()).not.toBeNull();
 
