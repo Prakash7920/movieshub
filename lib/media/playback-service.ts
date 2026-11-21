@@ -5,6 +5,11 @@ import {
 } from "@/lib/media/access-policy";
 import type { CloudflarePlaybackGrant } from "@/lib/media/cloudflare-stream";
 
+export type PlaybackGrantRateLimitDecision = {
+  allowed: boolean;
+  retryAfterSeconds: number;
+};
+
 export type PlaybackAccountRecord = {
   isBanned: boolean;
 };
@@ -22,12 +27,15 @@ type PlaybackErrorBody = { error: string; code: string };
 export type PlaybackServiceResult = {
   status: number;
   body: PlaybackErrorBody | CloudflarePlaybackGrant;
+  retryAfterSeconds?: number;
 };
 
 export type PlaybackServiceDependencies = {
   findAccount(userId: string): Promise<PlaybackAccountRecord | null>;
   findMovie(slug: string): Promise<PlaybackMovieRecord | null>;
   getPremiumEntitlement(userId: string): Promise<boolean>;
+  /** A required, user-scoped throttle for every enabled grant request. */
+  consumePlaybackGrantRateLimit(userId: string): Promise<PlaybackGrantRateLimitDecision>;
   /**
    * Omit unless the explicit Cloudflare feature flag and complete provider
    * configuration are present. The service never infers readiness from
@@ -106,6 +114,36 @@ export async function authorizePlaybackRequest(
   // until a separately configured provider adapter is supplied by the route.
   if (!dependencies.createPlaybackGrant) {
     return unavailable();
+  }
+
+  // Apply one shared per-user budget across titles so changing slugs cannot
+  // bypass the grant-issuance throttle. Limiter failures must fail closed.
+  let rateLimit: PlaybackGrantRateLimitDecision;
+  try {
+    rateLimit = await dependencies.consumePlaybackGrantRateLimit(input.userId);
+  } catch {
+    return {
+      status: 503,
+      body: {
+        error: "Playback authorization is temporarily unavailable.",
+        code: "PLAYBACK_RATE_LIMIT_UNAVAILABLE",
+      },
+    };
+  }
+
+  if (!rateLimit.allowed) {
+    const retryAfterSeconds =
+      Number.isFinite(rateLimit.retryAfterSeconds) && rateLimit.retryAfterSeconds > 0
+        ? Math.ceil(rateLimit.retryAfterSeconds)
+        : 60;
+    return {
+      status: 429,
+      body: {
+        error: "Too many playback requests. Please try again shortly.",
+        code: "PLAYBACK_RATE_LIMITED",
+      },
+      retryAfterSeconds,
+    };
   }
 
   const movie = await dependencies.findMovie(slug);
