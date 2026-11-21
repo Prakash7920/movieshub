@@ -56,6 +56,7 @@ test("recovers from a fatal HLS manifest error with a fresh grant and HLS instan
     }
 
     const state = window.__nexafilmHlsFatalRetry;
+    if (!state) throw new Error("HLS fatal retry mock state was not initialized");
     const createdUrls = new Set<string>();
     const originalCreateObjectURL = URL.createObjectURL.bind(URL);
     URL.createObjectURL = (object: Blob | MediaSource) => {
@@ -130,7 +131,7 @@ test("recovers from a fatal HLS manifest error with a fresh grant and HLS instan
 
   await page.goto("/watch/mocked-hls-fatal-retry");
   await expect(
-    page.locator("video[aria-label='Mocked Hls Fatal Retry video player]"),
+    page.locator("video[aria-label='Mocked Hls Fatal Retry video player']"),
   ).toBeVisible();
   await expect.poll(() => grantRequests, { timeout: 10_000 }).toBe(1);
   await expect.poll(() => manifestPaths.length, { timeout: 10_000 }).toBe(1);
