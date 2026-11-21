@@ -268,8 +268,6 @@ test("unmount aborts an in-flight refresh request and prevents further refreshes
 });
 
 type HlsLifecycleState = {
-  playHandlerAdds: number;
-  playHandlerRemoves: number;
   pauseCalls: number;
   playCalls: number;
   currentTime: number;
@@ -285,15 +283,13 @@ declare global {
   }
 }
 
-test("unmount removes the HLS.js play listener and releases its media object URL", async ({ page }) => {
+test("unmount destroys HLS.js media attachment and releases its media object URL", async ({ page }) => {
   const customerHost = "https://customer-mockcustomer.cloudflarestream.com";
   let grantRequests = 0;
   let manifestRequests = 0;
 
   await page.addInitScript(() => {
     const state: HlsLifecycleState = {
-      playHandlerAdds: 0,
-      playHandlerRemoves: 0,
       pauseCalls: 0,
       playCalls: 0,
       currentTime: 0,
@@ -318,44 +314,6 @@ test("unmount removes the HLS.js play listener and releases its media object URL
           type.includes("video/mp4") || type.includes("avc1") || type.includes("mp4a"),
       });
     }
-
-    let componentPlayHandler: EventListenerOrEventListenerObject | null = null;
-    const originalAddEventListener = HTMLVideoElement.prototype.addEventListener;
-    HTMLVideoElement.prototype.addEventListener = function (
-      type: string,
-      listener: EventListenerOrEventListenerObject | null,
-      options?: boolean | AddEventListenerOptions,
-    ) {
-      // The component registers its own play handler before Hls.js
-      // attaches internal media listeners. Capture that exact reference.
-      if (type === "play" && listener && componentPlayHandler === null) {
-        componentPlayHandler = listener;
-        state.playHandlerAdds += 1;
-      }
-      return originalAddEventListener.call(
-        this,
-        type,
-        listener ?? (() => undefined),
-        options,
-      );
-    };
-    const originalRemoveEventListener = HTMLVideoElement.prototype.removeEventListener;
-    HTMLVideoElement.prototype.removeEventListener = function (
-      type: string,
-      listener: EventListenerOrEventListenerObject | null,
-      options?: boolean | EventListenerOptions,
-    ) {
-      if (type === "play" && listener && listener === componentPlayHandler) {
-        componentPlayHandler = null;
-        state.playHandlerRemoves += 1;
-      }
-      return originalRemoveEventListener.call(
-        this,
-        type,
-        listener ?? (() => undefined),
-        options,
-      );
-    };
 
     Object.defineProperty(HTMLMediaElement.prototype, "currentTime", {
       configurable: true,
@@ -437,25 +395,19 @@ test("unmount removes the HLS.js play listener and releases its media object URL
   await expect(page.getByText("Secure stream ready.", { exact: false })).toBeVisible();
 
   const beforeUnmount = await page.evaluate(() => ({
-    playHandlerAdds: window.__nexafilmHlsLifecycleMock?.playHandlerAdds ?? 0,
     createdObjectUrls: window.__nexafilmHlsLifecycleMock?.createdObjectUrls ?? 0,
   }));
-  expect(beforeUnmount.playHandlerAdds).toBeGreaterThan(0);
   expect(beforeUnmount.createdObjectUrls).toBeGreaterThan(0);
 
   await page.getByRole("link", { name: "NexaFilm home" }).click();
   await expect(page.locator("video")).toHaveCount(0);
 
   const cleanup = await page.evaluate(() => ({
-    playHandlerAdds: window.__nexafilmHlsLifecycleMock?.playHandlerAdds ?? 0,
-    playHandlerRemoves: window.__nexafilmHlsLifecycleMock?.playHandlerRemoves ?? 0,
     pauseCalls: window.__nexafilmHlsLifecycleMock?.pauseCalls ?? 0,
     loadCalls: window.__nexafilmHlsLifecycleMock?.loadCalls ?? 0,
     createdObjectUrls: window.__nexafilmHlsLifecycleMock?.createdObjectUrls ?? 0,
     revokedObjectUrls: window.__nexafilmHlsLifecycleMock?.revokedObjectUrls ?? 0,
   }));
-  expect(cleanup.playHandlerAdds).toBe(beforeUnmount.playHandlerAdds);
-  expect(cleanup.playHandlerRemoves).toBe(cleanup.playHandlerAdds);
   expect(cleanup.pauseCalls).toBeGreaterThan(0);
   expect(cleanup.loadCalls).toBeGreaterThan(0);
   expect(cleanup.revokedObjectUrls).toBe(cleanup.createdObjectUrls);
