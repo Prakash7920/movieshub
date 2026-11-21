@@ -329,7 +329,12 @@ test("unmount removes the HLS.js play listener and releases its media object URL
         trackedPlayHandlers.add(listener);
         state.playHandlerAdds += 1;
       }
-      return originalAddEventListener.call(this, type, listener, options);
+      return originalAddEventListener.call(
+        this,
+        type,
+        listener ?? (() => undefined),
+        options,
+      );
     };
     const originalRemoveEventListener = HTMLMediaElement.prototype.removeEventListener;
     HTMLMediaElement.prototype.removeEventListener = function (
@@ -341,7 +346,12 @@ test("unmount removes the HLS.js play listener and releases its media object URL
         trackedPlayHandlers.delete(listener);
         state.playHandlerRemoves += 1;
       }
-      return originalRemoveEventListener.call(this, type, listener, options);
+      return originalRemoveEventListener.call(
+        this,
+        type,
+        listener ?? (() => undefined),
+        options,
+      );
     };
 
     const originalPause = HTMLMediaElement.prototype.pause;
