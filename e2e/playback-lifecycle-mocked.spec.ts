@@ -271,6 +271,9 @@ type HlsLifecycleState = {
   playHandlerAdds: number;
   playHandlerRemoves: number;
   pauseCalls: number;
+  playCalls: number;
+  currentTime: number;
+  paused: boolean;
   loadCalls: number;
   createdObjectUrls: number;
   revokedObjectUrls: number;
@@ -292,6 +295,9 @@ test("unmount removes the HLS.js play listener and releases its media object URL
       playHandlerAdds: 0,
       playHandlerRemoves: 0,
       pauseCalls: 0,
+      playCalls: 0,
+      currentTime: 0,
+      paused: true,
       loadCalls: 0,
       createdObjectUrls: 0,
       revokedObjectUrls: 0,
@@ -354,10 +360,25 @@ test("unmount removes the HLS.js play listener and releases its media object URL
       );
     };
 
-    const originalPause = HTMLMediaElement.prototype.pause;
-    HTMLMediaElement.prototype.pause = function () {
+    Object.defineProperty(HTMLMediaElement.prototype, "currentTime", {
+      configurable: true,
+      get: () => state.currentTime,
+      set: (value: number) => {
+        state.currentTime = value;
+      },
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "paused", {
+      configurable: true,
+      get: () => state.paused,
+    });
+    HTMLMediaElement.prototype.play = () => {
+      state.paused = false;
+      state.playCalls += 1;
+      return Promise.resolve();
+    };
+    HTMLMediaElement.prototype.pause = () => {
+      state.paused = true;
       state.pauseCalls += 1;
-      return originalPause.call(this);
     };
     const originalLoad = HTMLMediaElement.prototype.load;
     HTMLMediaElement.prototype.load = function () {
