@@ -1,3 +1,4 @@
+import { createMockPlaybackGrant } from "./playback-grant-fixture";
 import { expect, test, type Page } from "@playwright/test";
 
 type LifecycleState = {
@@ -73,13 +74,12 @@ async function installNativeLifecycleMock(page: Page) {
   });
 }
 
-function validGrant(expiresAt: Date) {
-  return {
-    protocol: "hls",
-    manifestUrl:
-      "https://customer-mockcustomer.cloudflarestream.com/header.lifecycle.signature/manifest/video.m3u8",
-    expiresAt: expiresAt.toISOString(),
-  };
+function validGrant(expiresAt: Date, fixtureId = "lifecycle") {
+  return createMockPlaybackGrant(
+    "https://customer-mockcustomer.cloudflarestream.com",
+    expiresAt,
+    fixtureId,
+  );
 }
 
 test("unmount clears native media source and cancels the scheduled refresh timer", async ({ page }) => {
@@ -94,7 +94,7 @@ test("unmount clears native media source and cancels the scheduled refresh timer
       status: 200,
       contentType: "application/json",
       headers: { "Cache-Control": "private, no-store, max-age=0" },
-      body: JSON.stringify(validGrant(new Date(clockStart.getTime() + 36_000))),
+      body: JSON.stringify(validGrant(new Date(clockStart.getTime() + 36_000), "lifecycle-timer")),
     });
   });
   await page.route("https://customer-mockcustomer.cloudflarestream.com/**", async (route) => {
@@ -114,7 +114,7 @@ test("unmount clears native media source and cancels the scheduled refresh timer
   const configuredSource = await page.evaluate(
     () => window.__nexafilmLifecycleMock?.source ?? "",
   );
-  expect(configuredSource).toContain("header.lifecycle.signature");
+  expect(configuredSource).toBe(validGrant(new Date(clockStart.getTime() + 36_000), "lifecycle-timer").manifestUrl);
 
   await page.getByRole("link", { name: "NexaFilm home" }).click();
   await expect(page.locator("video")).toHaveCount(0);
@@ -156,11 +156,9 @@ test("unmount aborts a pending initial playback-grant request", async ({ page })
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({
-          protocol: "hls",
-          manifestUrl: `${customerHost}/header.pending.signature/manifest/video.m3u8`,
-          expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
-        }),
+        body: JSON.stringify(
+          validGrant(new Date(Date.now() + 5 * 60_000), "lifecycle-pending"),
+        ),
       });
     } catch {
       // The browser request was intentionally aborted by component unmount.
@@ -208,7 +206,7 @@ test("unmount aborts an in-flight refresh request and prevents further refreshes
         status: 200,
         contentType: "application/json",
         headers: { "Cache-Control": "private, no-store, max-age=0" },
-        body: JSON.stringify(validGrant(new Date(clockStart.getTime() + 36_000))),
+        body: JSON.stringify(validGrant(new Date(clockStart.getTime() + 36_000), "lifecycle-refresh-initial")),
       });
       return;
     }
@@ -219,7 +217,7 @@ test("unmount aborts an in-flight refresh request and prevents further refreshes
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify(validGrant(new Date(clockStart.getTime() + 5 * 60_000))),
+        body: JSON.stringify(validGrant(new Date(clockStart.getTime() + 5 * 60_000), "lifecycle-refresh-renewed")),
       });
     } catch {
       // The browser request was intentionally aborted by component unmount.
@@ -362,11 +360,9 @@ test("unmount destroys HLS.js media attachment and releases its media object URL
       status: 200,
       contentType: "application/json",
       headers: { "Cache-Control": "private, no-store, max-age=0" },
-      body: JSON.stringify({
-        protocol: "hls",
-        manifestUrl: `${customerHost}/header.hlsjs-lifecycle.signature/manifest/video.m3u8`,
-        expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
-      }),
+      body: JSON.stringify(
+        validGrant(new Date(Date.now() + 5 * 60_000), "lifecycle-hlsjs"),
+      ),
     });
   });
   await page.route(`${customerHost}/**`, async (route) => {
