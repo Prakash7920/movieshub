@@ -68,6 +68,27 @@ export function VideoPlayer({
       hlsInstance?.startLoad();
     }
 
+    function failPlaybackClosed() {
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+        refreshTimer = null;
+      }
+
+      hlsInstance?.destroy();
+      hlsInstance = null;
+      HlsConstructor = null;
+      nativeHls = false;
+
+      const video = videoRef.current;
+      if (video) {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      }
+
+      setPlayerState("error");
+    }
+
     async function requestPlaybackGrant(): Promise<PlaybackGrant> {
       const response = await fetch(
         `/api/media/${encodeURIComponent(slug)}`,
@@ -151,11 +172,7 @@ export function VideoPlayer({
         scheduleGrantRefresh(nextGrant);
       } catch {
         if (controller.signal.aborted || disposed) return;
-        if (refreshTimer !== null) {
-          window.clearTimeout(refreshTimer);
-          refreshTimer = null;
-        }
-        setPlayerState("error");
+        failPlaybackClosed();
       }
     }
 
@@ -201,9 +218,7 @@ export function VideoPlayer({
                 window.clearTimeout(refreshTimer);
                 refreshTimer = null;
               }
-              setPlayerState("error");
-              hlsInstance?.destroy();
-              hlsInstance = null;
+              failPlaybackClosed();
             }
           });
 
@@ -226,7 +241,7 @@ export function VideoPlayer({
         throw new Error("This browser does not support secure HLS playback.");
       } catch {
         if (controller.signal.aborted || disposed) return;
-        setPlayerState("error");
+        failPlaybackClosed();
       }
     }
 
