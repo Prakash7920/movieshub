@@ -3,6 +3,7 @@ import {
   type PlaybackLicensePolicy,
   type PlaybackAccessDenialReason,
 } from "@/lib/media/access-policy";
+import type { CloudflarePlaybackGrant } from "@/lib/media/cloudflare-stream";
 
 export type PlaybackAccountRecord = {
   isBanned: boolean;
@@ -12,20 +13,41 @@ export type PlaybackMovieRecord = {
   isPublished: boolean;
   contentStatus: string;
   movieType: "FREE" | "PREMIUM";
-  videoUrl: string | null;
+  cloudflareStreamUid: string | null;
   license: PlaybackLicensePolicy | null;
 };
 
+type PlaybackErrorBody = { error: string; code: string };
+
 export type PlaybackServiceResult = {
   status: number;
-  body: { error: string; code: string };
+  body: PlaybackErrorBody | CloudflarePlaybackGrant;
 };
 
 export type PlaybackServiceDependencies = {
   findAccount(userId: string): Promise<PlaybackAccountRecord | null>;
   findMovie(slug: string): Promise<PlaybackMovieRecord | null>;
   getPremiumEntitlement(userId: string): Promise<boolean>;
+  /**
+   * Omit unless the explicit Cloudflare feature flag and complete provider
+   * configuration are present. The service never infers readiness from
+   * arbitrary storage environment variables.
+   */
+  createPlaybackGrant?: (
+    assetUid: string,
+    viewerCountry: string,
+  ) => Promise<CloudflarePlaybackGrant>;
 };
+
+function unavailable(): PlaybackServiceResult {
+  return {
+    status: 503,
+    body: {
+      error: "Secure media delivery is not configured yet.",
+      code: "MEDIA_DELIVERY_NOT_CONFIGURED",
+    },
+  };
+}
 
 function denied(reason: PlaybackAccessDenialReason): PlaybackServiceResult {
   switch (reason) {
@@ -40,7 +62,7 @@ function denied(reason: PlaybackAccessDenialReason): PlaybackServiceResult {
     case "MEDIA_SOURCE_UNAVAILABLE":
     case "STORAGE_NOT_CONFIGURED":
     case "SIGNING_SECRET_NOT_CONFIGURED":
-      return { status: 503, body: { error: "Secure media delivery is not configured yet.", code: "MEDIA_DELIVERY_NOT_CONFIGURED" } };
+      return unavailable();
     case "CONTENT_UNAVAILABLE":
     case "LICENSE_UNAVAILABLE":
     case "LICENSE_INACTIVE":
@@ -52,9 +74,12 @@ function denied(reason: PlaybackAccessDenialReason): PlaybackServiceResult {
 }
 
 /**
- * Server-side playback authorization preflight.
- * It deliberately never returns the source URL. Until a reviewed storage
- * signer is integrated, every otherwise-authorized request fails closed.
+ * Server-side playback authorization and grant issuance.
+ *
+ * The provider adapter is optional and the production route supplies it only
+ * when CLOUDFLARE_STREAM_ENABLED=true and all required credentials are valid.
+ * When disabled, this function exits before looking up a Movie, so a Preview
+ * database without the new asset-UID column remains safely fail-closed.
  */
 export async function authorizePlaybackRequest(
   input: { userId: string | null; slug: string; viewerCountry: string | null },
@@ -77,6 +102,12 @@ export async function authorizePlaybackRequest(
     return denied("ACCOUNT_BLOCKED");
   }
 
+  // Explicit default-OFF gate. Do not query the Movie model or call Cloudflare
+  // until a separately configured provider adapter is supplied by the route.
+  if (!dependencies.createPlaybackGrant) {
+    return unavailable();
+  }
+
   const movie = await dependencies.findMovie(slug);
   if (!movie) {
     return { status: 404, body: { error: "This title is not available for playback.", code: "TITLE_UNAVAILABLE" } };
@@ -84,32 +115,41 @@ export async function authorizePlaybackRequest(
 
   const hasPremiumEntitlement = await dependencies.getPremiumEntitlement(input.userId);
 
-  // Intentionally false: no storage provider/signing adapter has been
-  // selected or reviewed. Environment variables alone must never enable it.
-  const storageSignerAdapterReady = false;
-
   const decision = evaluatePlaybackAccess({
     authenticated: true,
     accountAllowed: true,
     moviePublished: movie.isPublished,
     contentStatus: movie.contentStatus,
     movieType: movie.movieType,
-    mediaSource: movie.videoUrl,
+    mediaSource: movie.cloudflareStreamUid,
     license: movie.license,
     viewerCountry: input.viewerCountry,
     hasPremiumEntitlement,
-    storageConfigured: storageSignerAdapterReady,
-    signingSecretConfigured: Boolean(process.env.MEDIA_SIGNING_SECRET?.trim()),
+    storageConfigured: true,
+    // The provider API credential authorizes Cloudflare's managed token
+    // issuance endpoint. No local signing key is required by this adapter.
+    signingSecretConfigured: true,
   });
 
   if (!decision.allowed) {
     return denied(decision.reason);
   }
 
-  // This remains unreachable until a real, reviewed storage signer replaces
-  // the explicit false gate above. Never return movie.videoUrl to the client.
-  return {
-    status: 503,
-    body: { error: "Secure media delivery is not configured yet.", code: "MEDIA_DELIVERY_NOT_CONFIGURED" },
-  };
+  // The policy has established a valid country and non-empty provider UID.
+  const viewerCountry = input.viewerCountry!.trim().toUpperCase();
+  try {
+    return {
+      status: 200,
+      body: await dependencies.createPlaybackGrant(movie.cloudflareStreamUid!, viewerCountry),
+    };
+  } catch {
+    // Provider responses and credentials are deliberately not surfaced.
+    return {
+      status: 503,
+      body: {
+        error: "Secure media delivery is temporarily unavailable.",
+        code: "MEDIA_PROVIDER_UNAVAILABLE",
+      },
+    };
+  }
 }
