@@ -109,7 +109,7 @@ test("rejects an expired initial grant without assigning or requesting a media m
   });
   await page.route(`${customerHost}/**`, async (route) => {
     manifestRequests.push(route.request().url());
-    await route.fulfill({ status: 200, contentType: "application/vnd.apple.mpegurl", body: "#EXTM3U\\n#EXT-X-ENDLIST" });
+    await route.fulfill({ status: 200, contentType: "application/vnd.apple.mpegurl", body: ["#EXTM3U", "#EXT-X-ENDLIST"].join("\n") });
   });
 
   await page.goto("/watch/mocked-expired-grant");
@@ -167,7 +167,7 @@ test("stops playback and clears the old source when a renewal request fails", as
     await route.fulfill({
       status: 200,
       contentType: "application/vnd.apple.mpegurl",
-      body: "#EXTM3U\\n#EXT-X-ENDLIST",
+      body: ["#EXTM3U", "#EXT-X-ENDLIST"].join("\n"),
     });
   });
 
@@ -205,7 +205,7 @@ test("stops playback and clears the old source when a renewal request fails", as
 
   expect(failedState.source).toBe("");
   expect(failedState.sourceAssignments[0]).toContain("header.valid.signature");
-  expect(failedState.sourceAssignments.at(-1)).toBe("");
+  expect(failedState.sourceAssignments[failedState.sourceAssignments.length - 1]).toBe("");
   expect(failedState.currentTime).toBe(67.25);
   expect(failedState.paused).toBe(true);
   expect(failedState.pauseCalls).toBe(1);
