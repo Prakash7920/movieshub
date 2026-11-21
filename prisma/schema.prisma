@@ -187,6 +187,7 @@ model Movie {
   backdropUrl String
   trailerUrl String?
   videoUrl String?
+  cloudflareStreamUid String? @unique
   language String @default("ta")
   audioLanguages String[]
   subtitleLanguages String[]
