@@ -171,3 +171,37 @@ test("missing media source, storage configuration, or signing secret fails close
     { allowed: false, reason: "SIGNING_SECRET_NOT_CONFIGURED" },
   );
 });
+
+test("licence expiry is exclusive at the exact millisecond boundary", () => {
+  const expiry = new Date(now.getTime() + 5_000);
+  const license = {
+    status: "ACTIVE",
+    startDate: new Date(now.getTime() - 5_000),
+    expiryDate: expiry,
+    allowedCountries: ["IN"],
+  };
+
+  assert.deepEqual(
+    evaluatePlaybackAccess(validInput({
+      license,
+      now: new Date(expiry.getTime() - 1),
+    })),
+    { allowed: true },
+  );
+
+  assert.deepEqual(
+    evaluatePlaybackAccess(validInput({
+      license,
+      now: expiry,
+    })),
+    { allowed: false, reason: "LICENSE_EXPIRED" },
+  );
+
+  assert.deepEqual(
+    evaluatePlaybackAccess(validInput({
+      license,
+      now: new Date(expiry.getTime() + 1),
+    })),
+    { allowed: false, reason: "LICENSE_EXPIRED" },
+  );
+});
