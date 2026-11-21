@@ -320,8 +320,8 @@ test("unmount removes the HLS.js play listener and releases its media object URL
     }
 
     let componentPlayHandler: EventListenerOrEventListenerObject | null = null;
-    const originalAddEventListener = HTMLMediaElement.prototype.addEventListener;
-    HTMLMediaElement.prototype.addEventListener = function (
+    const originalAddEventListener = HTMLVideoElement.prototype.addEventListener;
+    HTMLVideoElement.prototype.addEventListener = function (
       type: string,
       listener: EventListenerOrEventListenerObject | null,
       options?: boolean | AddEventListenerOptions,
@@ -339,8 +339,8 @@ test("unmount removes the HLS.js play listener and releases its media object URL
         options,
       );
     };
-    const originalRemoveEventListener = HTMLMediaElement.prototype.removeEventListener;
-    HTMLMediaElement.prototype.removeEventListener = function (
+    const originalRemoveEventListener = HTMLVideoElement.prototype.removeEventListener;
+    HTMLVideoElement.prototype.removeEventListener = function (
       type: string,
       listener: EventListenerOrEventListenerObject | null,
       options?: boolean | EventListenerOptions,
