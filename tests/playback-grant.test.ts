@@ -6,12 +6,8 @@ const now = Date.parse("2026-11-21T00:00:00.000Z");
 const grantExpiry = now + 5 * 60 * 1000;
 
 function base64UrlJson(value: Record<string, unknown>): string {
-  return btoa(JSON.stringify(value))
-    .replace(/=/g, "")
-    .replace(/\\+/g, "-")
-    .replace(/\\//g, "_");
+  return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
 }
-
 function signedTokenForExpiry(expiryMs: number): string {
   const header = base64UrlJson({ alg: "RS256", kid: "unit-test-key" });
   const payload = base64UrlJson({ exp: String(expiryMs / 1000) });
