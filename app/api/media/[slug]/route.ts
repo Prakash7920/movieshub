@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
 import { getVercelViewerCountry } from "@/lib/licensing/territory";
 import { getUserEntitlements } from "@/lib/subscriptions/entitlements";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { authorizePlaybackRequest } from "@/lib/media/playback-service";
 import {
   createCloudflareStreamPlaybackGrant,
@@ -55,6 +56,13 @@ export async function GET(
           }),
         getPremiumEntitlement: async (userId) =>
           (await getUserEntitlements(userId)).isPremium,
+        consumePlaybackGrantRateLimit: async (userId) => {
+          const result = await consumeRateLimit("media-playback-grant", userId, 10, 5 * 60);
+          return {
+            allowed: result.allowed,
+            retryAfterSeconds: result.retryAfterSeconds,
+          };
+        },
         createPlaybackGrant: cloudflareConfig
           ? (assetUid, viewerCountry) =>
               createCloudflareStreamPlaybackGrant(
@@ -67,7 +75,12 @@ export async function GET(
 
     return NextResponse.json(result.body, {
       status: result.status,
-      headers: { "Cache-Control": "private, no-store, max-age=0" },
+      headers: {
+        "Cache-Control": "private, no-store, max-age=0",
+        ...(result.retryAfterSeconds === undefined
+          ? {}
+          : { "Retry-After": String(result.retryAfterSeconds) }),
+      },
     });
   } catch {
     return NextResponse.json(
