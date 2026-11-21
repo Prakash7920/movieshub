@@ -57,6 +57,11 @@ export function VideoPlayer({
       return;
     }
 
+    // Capture the committed media element before asynchronous work. React may
+    // clear the ref before passive-effect cleanup runs during unmount.
+    const activeVideo = videoRef.current;
+    if (!activeVideo) return;
+
     const controller = new AbortController();
     let disposed = false;
     let hlsInstance: import("hls.js").default | null = null;
@@ -74,7 +79,7 @@ export function VideoPlayer({
         refreshTimer = null;
       }
 
-      const video = videoRef.current;
+      const video = activeVideo;
       const hasConfiguredPlayback = Boolean(
         hlsInstance || nativeHls || video?.hasAttribute("src"),
       );
@@ -138,7 +143,7 @@ export function VideoPlayer({
         const nextGrant = await requestPlaybackGrant();
         if (disposed) return;
 
-        const video = videoRef.current;
+        const video = activeVideo;
         if (!video) return;
 
         const previousTime = video.currentTime;
@@ -181,7 +186,7 @@ export function VideoPlayer({
     }
 
     async function preparePlayback() {
-      const video = videoRef.current;
+      const video = activeVideo;
       if (!video) return;
 
       setPlayerState("loading");
@@ -261,7 +266,7 @@ export function VideoPlayer({
       hlsInstance?.destroy();
       hlsInstance = null;
 
-      const video = videoRef.current;
+      const video = activeVideo;
       if (video) {
         video.removeEventListener("play", startHlsLoading);
         video.pause();
