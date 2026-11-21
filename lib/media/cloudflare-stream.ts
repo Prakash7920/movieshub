@@ -263,7 +263,10 @@ export async function createCloudflareStreamPlaybackGrant(
 export function getCloudflareStreamConfigFromEnv(
   values: Readonly<Record<string, string | undefined>> = process.env,
 ): CloudflareStreamConfig | null {
-  if (values.CLOUDFLARE_STREAM_ENABLED !== "true") {
+  if (
+    values.CLOUDFLARE_STREAM_ENABLED !== "true" ||
+    values.CLOUDFLARE_PLAYBACK_ENABLED !== "true"
+  ) {
     return null;
   }
 
