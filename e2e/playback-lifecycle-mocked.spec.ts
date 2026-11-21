@@ -266,3 +266,169 @@ test("unmount aborts an in-flight refresh request and prevents further refreshes
   expect(cleanupState.pauseCalls).toBe(1);
   expect(cleanupState.loadCalls).toBe(1);
 });
+
+type HlsLifecycleState = {
+  playHandlerAdds: number;
+  playHandlerRemoves: number;
+  pauseCalls: number;
+  loadCalls: number;
+  createdObjectUrls: number;
+  revokedObjectUrls: number;
+};
+
+declare global {
+  interface Window {
+    __nexafilmHlsLifecycleMock?: HlsLifecycleState;
+  }
+}
+
+test("unmount removes the HLS.js play listener and releases its media object URL", async ({ page }) => {
+  const customerHost = "https://customer-mockcustomer.cloudflarestream.com";
+  let grantRequests = 0;
+  let manifestRequests = 0;
+
+  await page.addInitScript(() => {
+    const state: HlsLifecycleState = {
+      playHandlerAdds: 0,
+      playHandlerRemoves: 0,
+      pauseCalls: 0,
+      loadCalls: 0,
+      createdObjectUrls: 0,
+      revokedObjectUrls: 0,
+    };
+    window.__nexafilmHlsLifecycleMock = state;
+
+    // Force Hls.js/MSE, not native HLS.
+    Reflect.deleteProperty(window, "ManagedMediaSource");
+    const originalCanPlayType = HTMLMediaElement.prototype.canPlayType;
+    HTMLMediaElement.prototype.canPlayType = function (type: string) {
+      if (type === "application/vnd.apple.mpegurl") return "";
+      return originalCanPlayType.call(this, type);
+    };
+    if (window.MediaSource) {
+      Object.defineProperty(window.MediaSource, "isTypeSupported", {
+        configurable: true,
+        value: (type: string) =>
+          type.includes("video/mp4") || type.includes("avc1") || type.includes("mp4a"),
+      });
+    }
+
+    const trackedPlayHandlers = new Set<EventListenerOrEventListenerObject>();
+    const originalAddEventListener = HTMLMediaElement.prototype.addEventListener;
+    HTMLMediaElement.prototype.addEventListener = function (
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+      options?: boolean | AddEventListenerOptions,
+    ) {
+      if (
+        type === "play" &&
+        listener &&
+        typeof listener === "function" &&
+        listener.name === "startHlsLoading"
+      ) {
+        trackedPlayHandlers.add(listener);
+        state.playHandlerAdds += 1;
+      }
+      return originalAddEventListener.call(this, type, listener, options);
+    };
+    const originalRemoveEventListener = HTMLMediaElement.prototype.removeEventListener;
+    HTMLMediaElement.prototype.removeEventListener = function (
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+      options?: boolean | EventListenerOptions,
+    ) {
+      if (type === "play" && listener && trackedPlayHandlers.has(listener)) {
+        trackedPlayHandlers.delete(listener);
+        state.playHandlerRemoves += 1;
+      }
+      return originalRemoveEventListener.call(this, type, listener, options);
+    };
+
+    const originalPause = HTMLMediaElement.prototype.pause;
+    HTMLMediaElement.prototype.pause = function () {
+      state.pauseCalls += 1;
+      return originalPause.call(this);
+    };
+    const originalLoad = HTMLMediaElement.prototype.load;
+    HTMLMediaElement.prototype.load = function () {
+      state.loadCalls += 1;
+      return originalLoad.call(this);
+    };
+
+    const createdUrls = new Set<string>();
+    const originalCreateObjectURL = URL.createObjectURL.bind(URL);
+    URL.createObjectURL = (object: Blob | MediaSource) => {
+      const url = originalCreateObjectURL(object);
+      createdUrls.add(url);
+      state.createdObjectUrls += 1;
+      return url;
+    };
+    const originalRevokeObjectURL = URL.revokeObjectURL.bind(URL);
+    URL.revokeObjectURL = (url: string) => {
+      if (createdUrls.has(url)) state.revokedObjectUrls += 1;
+      return originalRevokeObjectURL(url);
+    };
+  });
+
+  await page.route("**/api/media/mocked-lifecycle-hlsjs", async (route) => {
+    grantRequests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "Cache-Control": "private, no-store, max-age=0" },
+      body: JSON.stringify({
+        protocol: "hls",
+        manifestUrl: `${customerHost}/header.hlsjs-lifecycle.signature/manifest/video.m3u8`,
+        expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      }),
+    });
+  });
+  await page.route(`${customerHost}/**`, async (route) => {
+    manifestRequests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/vnd.apple.mpegurl",
+      body: [
+        "#EXTM3U",
+        "#EXT-X-VERSION:3",
+        "#EXT-X-TARGETDURATION:6",
+        "#EXT-X-MEDIA-SEQUENCE:0",
+        "#EXTINF:6.0,",
+        "segment.ts",
+        "#EXT-X-ENDLIST",
+        "",
+      ].join("\\n"),
+    });
+  });
+
+  await page.goto("/watch/mocked-lifecycle-hlsjs");
+  const video = page.locator("video[aria-label='Mocked Lifecycle Hlsjs video player']");
+  await expect(video).toBeVisible();
+  await expect.poll(() => grantRequests, { timeout: 10_000 }).toBe(1);
+  await expect.poll(() => manifestRequests, { timeout: 10_000 }).toBe(1);
+  await expect(page.getByText("Secure stream ready.", { exact: false })).toBeVisible();
+
+  const beforeUnmount = await page.evaluate(() => ({
+    playHandlerAdds: window.__nexafilmHlsLifecycleMock?.playHandlerAdds ?? 0,
+    createdObjectUrls: window.__nexafilmHlsLifecycleMock?.createdObjectUrls ?? 0,
+  }));
+  expect(beforeUnmount.playHandlerAdds).toBe(1);
+  expect(beforeUnmount.createdObjectUrls).toBeGreaterThan(0);
+
+  await page.getByRole("link", { name: "NexaFilm home" }).click();
+  await expect(page.locator("video")).toHaveCount(0);
+
+  const cleanup = await page.evaluate(() => ({
+    playHandlerAdds: window.__nexafilmHlsLifecycleMock?.playHandlerAdds ?? 0,
+    playHandlerRemoves: window.__nexafilmHlsLifecycleMock?.playHandlerRemoves ?? 0,
+    pauseCalls: window.__nexafilmHlsLifecycleMock?.pauseCalls ?? 0,
+    loadCalls: window.__nexafilmHlsLifecycleMock?.loadCalls ?? 0,
+    createdObjectUrls: window.__nexafilmHlsLifecycleMock?.createdObjectUrls ?? 0,
+    revokedObjectUrls: window.__nexafilmHlsLifecycleMock?.revokedObjectUrls ?? 0,
+  }));
+  expect(cleanup.playHandlerAdds).toBe(1);
+  expect(cleanup.playHandlerRemoves).toBe(1);
+  expect(cleanup.pauseCalls).toBeGreaterThan(0);
+  expect(cleanup.loadCalls).toBeGreaterThan(0);
+  expect(cleanup.revokedObjectUrls).toBe(cleanup.createdObjectUrls);
+});
