@@ -6,8 +6,6 @@ export type CloudflareStreamConfig = {
 
 export type CloudflarePlaybackGrantInput = {
   assetUid: string;
-  /** Must come from trusted asset metadata showing requireSignedURLs=true. */
-  assetRequiresSignedUrls: boolean;
   viewerCountry: string;
   ttlSeconds?: number;
   now?: Date;
@@ -32,7 +30,9 @@ export class CloudflareStreamDeliveryError extends Error {
       | "INVALID_CONFIGURATION"
       | "INVALID_REQUEST"
       | "PROVIDER_REJECTED"
-      | "INVALID_PROVIDER_RESPONSE",
+      | "INVALID_PROVIDER_RESPONSE"
+      | "ASSET_NOT_PRIVATE"
+      | "ASSET_NOT_READY",
   ) {
     super(message);
     this.name = "CloudflareStreamDeliveryError";
@@ -62,12 +62,85 @@ function validateConfig(config: CloudflareStreamConfig): void {
   }
 }
 
+async function readJson(
+  response: FetchResponseLike,
+): Promise<Record<string, unknown>> {
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new CloudflareStreamDeliveryError(
+      "Cloudflare Stream returned an unreadable response.",
+      "INVALID_PROVIDER_RESPONSE",
+    );
+  }
+
+  if (!isRecord(payload) || payload.success !== true || !isRecord(payload.result)) {
+    throw new CloudflareStreamDeliveryError(
+      "Cloudflare Stream returned an invalid response.",
+      "INVALID_PROVIDER_RESPONSE",
+    );
+  }
+
+  return payload.result;
+}
+
+async function verifyPrivateReadyAsset(
+  endpoint: string,
+  assetUid: string,
+  apiToken: string,
+  fetcher: CloudflareFetch,
+): Promise<void> {
+  let response: FetchResponseLike;
+  try {
+    response = await fetcher(endpoint, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+  } catch {
+    throw new CloudflareStreamDeliveryError(
+      "Cloudflare Stream asset details could not be retrieved.",
+      "PROVIDER_REJECTED",
+    );
+  }
+
+  if (!response.ok) {
+    throw new CloudflareStreamDeliveryError(
+      `Cloudflare Stream asset verification failed (HTTP ${response.status}).`,
+      "PROVIDER_REJECTED",
+    );
+  }
+
+  const details = await readJson(response);
+  if (details.uid !== assetUid || details.requireSignedURLs !== true) {
+    throw new CloudflareStreamDeliveryError(
+      "The Cloudflare Stream asset is not verified as private.",
+      "ASSET_NOT_PRIVATE",
+    );
+  }
+
+  if (details.readyToStream !== true) {
+    throw new CloudflareStreamDeliveryError(
+      "The Cloudflare Stream asset is not ready for playback.",
+      "ASSET_NOT_READY",
+    );
+  }
+}
+
 /**
  * Creates a short-lived, country-bound HLS grant for a private Stream asset.
  *
- * This adapter never enables public playback, never enables downloads, and
- * never returns the provider asset UID or API credential. Callers must first
- * complete NexaFilm's independent account, entitlement and licence checks.
+ * Before minting a token, this adapter independently reads the provider's
+ * asset metadata and requires both requireSignedURLs=true and
+ * readyToStream=true. Callers must first complete NexaFilm's own account,
+ * entitlement, publication, territory and licence checks.
+ *
+ * This adapter never enables public playback or downloads and never returns
+ * the provider API credential or raw source media URL.
  */
 export async function createCloudflareStreamPlaybackGrant(
   input: CloudflarePlaybackGrantInput,
@@ -83,16 +156,7 @@ export async function createCloudflareStreamPlaybackGrant(
     );
   }
 
-  if (input.assetRequiresSignedUrls !== true) {
-    throw new CloudflareStreamDeliveryError(
-      "The Stream asset is not verified as private.",
-      "INVALID_REQUEST",
-    );
-  }
-
-  const country = typeof input.viewerCountry === "string"
-    ? input.viewerCountry.trim().toUpperCase()
-    : "";
+  const country = input.viewerCountry.trim().toUpperCase();
   if (!/^[A-Z]{2}$/.test(country)) {
     throw new CloudflareStreamDeliveryError(
       "A verified ISO country code is required.",
@@ -122,12 +186,18 @@ export async function createCloudflareStreamPlaybackGrant(
   }
   const expiresAtSeconds = issuedAt + ttlSeconds;
 
-  const endpoint =
-    `${CLOUDFLARE_API}/accounts/${config.accountId}/stream/${input.assetUid}/token`;
+  const assetEndpoint =
+    `${CLOUDFLARE_API}/accounts/${config.accountId}/stream/${input.assetUid}`;
+  await verifyPrivateReadyAsset(
+    assetEndpoint,
+    input.assetUid,
+    config.apiToken,
+    fetcher,
+  );
 
   let response: FetchResponseLike;
   try {
-    response = await fetcher(endpoint, {
+    response = await fetcher(`${assetEndpoint}/token`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${config.apiToken}`,
@@ -152,7 +222,7 @@ export async function createCloudflareStreamPlaybackGrant(
     });
   } catch {
     throw new CloudflareStreamDeliveryError(
-      "Cloudflare Stream could not be reached.",
+      "Cloudflare Stream could not issue a playback grant.",
       "PROVIDER_REJECTED",
     );
   }
@@ -164,20 +234,8 @@ export async function createCloudflareStreamPlaybackGrant(
     );
   }
 
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new CloudflareStreamDeliveryError(
-      "Cloudflare Stream returned an unreadable response.",
-      "INVALID_PROVIDER_RESPONSE",
-    );
-  }
-
-  const result = isRecord(payload) && payload.success === true && isRecord(payload.result)
-    ? payload.result
-    : null;
-  const token = result?.token;
+  const result = await readJson(response);
+  const token = result.token;
   if (
     typeof token !== "string" ||
     !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)
