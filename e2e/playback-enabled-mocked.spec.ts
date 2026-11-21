@@ -19,6 +19,7 @@ test("renews a mocked HLS grant and restores playback position without contactin
   const secondGrantExpiry = new Date(clockStart.getTime() + 5 * 60_000).toISOString();
   const customerHost = "https://customer-mockcustomer.cloudflarestream.com";
   const manifestUrls: string[] = [];
+  let segmentRequests = 0;
   let grantRequests = 0;
 
   const grants = [
@@ -52,6 +53,18 @@ test("renews a mocked HLS grant and restores playback position without contactin
         state.currentTimeAssignments.push(value);
       },
     });
+    const originalCanPlayType = HTMLMediaElement.prototype.canPlayType;
+    HTMLMediaElement.prototype.canPlayType = function (type: string) {
+      if (type === "application/vnd.apple.mpegurl") return "";
+      return originalCanPlayType.call(this, type);
+    };
+    if (window.MediaSource) {
+      Object.defineProperty(window.MediaSource, "isTypeSupported", {
+        configurable: true,
+        value: (type: string) =>
+          type.includes("video/mp4") || type.includes("avc1") || type.includes("mp4a"),
+      });
+    }
     Object.defineProperty(HTMLMediaElement.prototype, "paused", {
       configurable: true,
       get: () => state.paused,
@@ -89,10 +102,18 @@ test("renews a mocked HLS grant and restores playback position without contactin
           "#EXT-X-VERSION:3",
           "#EXT-X-TARGETDURATION:6",
           "#EXT-X-MEDIA-SEQUENCE:0",
+          "#EXTINF:6.0,",
+          "segment.ts",
           "#EXT-X-ENDLIST",
           "",
         ].join("\n"),
       });
+      return;
+    }
+
+    if (url.pathname.endsWith("/segment.ts")) {
+      segmentRequests += 1;
+      await route.fulfill({ status: 200, contentType: "video/mp2t", body: "" });
       return;
     }
 
@@ -104,6 +125,7 @@ test("renews a mocked HLS grant and restores playback position without contactin
   await expect.poll(() => grantRequests, { timeout: 10_000 }).toBe(1);
   await expect.poll(() => manifestUrls.length, { timeout: 10_000 }).toBe(1);
   await expect(page.getByText("Secure stream ready.", { exact: false })).toBeVisible();
+  expect(segmentRequests).toBe(0);
 
   await page.evaluate(() => {
     const state = window.__nexafilmMockPlayback;
@@ -136,6 +158,7 @@ test("renews a mocked HLS grant and restores playback position without contactin
   }));
   expect(restoredState.currentTime).toBe(42.5);
   expect(restoredState.playCalls).toBeGreaterThan(0);
+  expect(segmentRequests).toBe(0);
   expect(grantRequests).toBe(2);
   expect(manifestUrls).toHaveLength(2);
 });
