@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: ["playback-enabled-mocked.spec.ts"],
+  testMatch: ["playback-*-mocked.spec.ts"],
   fullyParallel: false,
   workers: 1,
   timeout: 45_000,
