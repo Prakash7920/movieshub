@@ -54,14 +54,14 @@ This checkpoint supersedes the *current-state conclusions* in the earlier Phase 
 | Authenticated Preview grant issuance | No live authenticated request against a configured Cloudflare Stream asset was performed. | **NOT TESTED** |
 | Real Cloudflare signature/edge validation | No real token, HLS manifest, segment request, token-expiry-at-edge, country-denial, or public-ID-denial test has been run. | **BLOCKED** |
 | Lawful non-production test asset and rights evidence | No approved media asset with documented upload/streaming rights and verified territory metadata is recorded in this checkpoint. | **BLOCKED** |
-| New asset UID migration on target DB | `20261121100000_add_cloudflare_stream_asset_uid` exists in the branch and adds nullable unique `Movie.cloudflareStreamUid`; its application to the intended non-production Preview runtime database is not evidenced here. | **NOT VERIFIED** |
-| Media-grant rate limiting | The current media route/service does not call the existing `consumeRateLimit` helper. Add per-user throttling and denial tests before enabling provider-backed grant issuance, to constrain repeated token requests and provider usage. | **OPEN SECURITY GATE** |
+| New asset UID migration on target DB | Phase 5.27 read-only verification on isolated Neon `nexafilm-e2e-isolated/test/movieshub_test`: successful ledger row, matching SHA-256, nullable `text` column and unique index; 14/14 migrations successful, 0 unresolved, 0 rolled back. | **PASS — Phase 5.27** |
+| Media-grant rate limiting | Phase 5.26 implemented 10 requests per authenticated user per 5 minutes using the existing HMAC-hashed PostgreSQL bucket; `429` + `Retry-After`, fail-closed `503` on limiter errors; CI run #44931742994 passed. | **PASS — Phase 5.26** |
 
 ## Enablement gates — all required before playback activation
 
 - Obtain owner approval for Cloudflare Stream adoption and any usage-based charges; provision a narrowly scoped provider credential only after that approval.
 - Use only a non-production test asset with documented rights to upload and stream. Confirm the asset is private (`requireSignedURLs=true`) and its licence/territory metadata is accurate.
-- Apply and verify the nullable asset-UID migration against the intended isolated non-production database before any route that queries that column can be enabled there.
+- The nullable asset-UID migration is already applied and verified on the isolated Preview/E2E database (Phase 5.27); no further migration run is required for this target.
 - Implement per-user (and, as appropriate, per-asset) rate limiting for media-grant requests; fail closed on rate-limit infrastructure errors and cover limit/exhaustion behavior in route tests.
 - Run a live authenticated Preview grant request against the approved test asset, then validate Cloudflare's signature enforcement, HLS manifest and segment access, country allow/block behavior, expiry denial at the edge, and denial of public-ID playback.
 - Keep download access disabled and retain a tested rollback that returns the Watch page to its disabled state.
@@ -73,3 +73,11 @@ This checkpoint supersedes the *current-state conclusions* in the earlier Phase 
 Do not add Cloudflare credentials, enable either playback flag, upload media, apply a Preview database migration, change deployment protection, or activate Production playback as part of this audit. No Production settings, secrets, databases, payments, or deployment targets were changed. PR #15 remains a separate OPEN/UNMERGED release candidate; its payment/webhook, deployed security-header, current-head independent-review and other operational gates remain independent of this media audit.
 
 **Phase 5.25 result:** PASS for the security audit and release-gate consolidation artifact. The outstanding enablement gates above remain open; this PASS is not approval to stream content.
+
+
+## Phase 5.26–5.27 release-gate updates (2026-11-21)
+
+- **Phase 5.26:** per-user playback grant request throttling is implemented and tested; see [playback-grant-rate-limit.md](playback-grant-rate-limit.md). Implementation CI [#44931742994](https://github.com/Prakash7920/movieshub/actions/runs/44931742994) passed database integration (25/25), unit tests (77/77), browser E2E (13/13), playback browser E2E (10/10), type-check and Next.js build.
+- **Phase 5.27:** the `20261121100000_add_cloudflare_stream_asset_uid` migration was confirmed already applied to the isolated Preview/E2E database. The migration ledger row is successful with no rollback, its SHA-256 matches the repository file, the nullable `text` column exists, and the expected unique index exists. The ledger aggregate showed 14 successful rows, 0 unresolved and 0 rolled back.
+- Detailed database evidence: [asset-uid-migration-verification.md](asset-uid-migration-verification.md).
+- Both checkpoints used read-only verification or application code/test changes on the existing Phase 5 PR branch. No Production resources were accessed or modified. Provider-backed playback remains blocked pending rights-cleared test asset and real Cloudflare edge validation.
