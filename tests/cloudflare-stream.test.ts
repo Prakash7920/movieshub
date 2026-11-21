@@ -18,12 +18,8 @@ const fixedNow = new Date("2026-11-20T12:00:00.000Z");
 const fixedNowSeconds = Math.floor(fixedNow.getTime() / 1000);
 
 function base64UrlJson(value: Record<string, unknown>): string {
-  return btoa(JSON.stringify(value))
-    .replace(/=/g, "")
-    .replace(/\\+/g, "-")
-    .replace(/\\//g, "_");
+  return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
 }
-
 function signedTokenForExpiry(expirySeconds: number): string {
   const header = base64UrlJson({ alg: "RS256", kid: "unit-test-key" });
   const payload = base64UrlJson({ exp: String(expirySeconds) });
