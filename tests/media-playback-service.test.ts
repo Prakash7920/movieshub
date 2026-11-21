@@ -30,6 +30,10 @@ function dependencies(
       },
     }),
     getPremiumEntitlement: async () => false,
+    consumePlaybackGrantRateLimit: async () => ({
+      allowed: true,
+      retryAfterSeconds: 300,
+    }),
     ...overrides,
   };
 }
@@ -316,4 +320,98 @@ test("missing provider asset UID fails closed without requesting a token", async
   assert.equal(result.status, 503);
   assert.equal("code" in result.body && result.body.code, "MEDIA_DELIVERY_NOT_CONFIGURED");
   assert.equal(tokenRequests, 0);
+});
+
+
+test("enabled grant issuance consumes a shared rate-limit bucket for the authenticated user", async () => {
+  let limitedUserId = "";
+  let movieLookupCount = 0;
+  const result = await authorizePlaybackRequest(
+    { userId: "user-42", slug: "sample-title", viewerCountry: "IN" },
+    enabledDependencies({
+      consumePlaybackGrantRateLimit: async (userId) => {
+        limitedUserId = userId;
+        return { allowed: true, retryAfterSeconds: 300 };
+      },
+      findMovie: async () => {
+        movieLookupCount += 1;
+        return {
+          isPublished: true,
+          contentStatus: "PUBLISHED",
+          movieType: "FREE",
+          cloudflareStreamUid: validAssetUid,
+          license: {
+            status: "ACTIVE",
+            startDate: new Date("2026-01-01T00:00:00.000Z"),
+            expiryDate: new Date("2027-01-01T00:00:00.000Z"),
+            allowedCountries: ["IN"],
+          },
+        };
+      },
+    }),
+  );
+
+  assert.equal(result.status, 200);
+  assert.equal(limitedUserId, "user-42");
+  assert.equal(movieLookupCount, 1);
+});
+
+test("grant rate limit rejects excess requests before movie lookup or provider issuance", async () => {
+  let movieLookupCount = 0;
+  let grantRequests = 0;
+  const result = await authorizePlaybackRequest(
+    { userId: "user-42", slug: "another-title", viewerCountry: "IN" },
+    enabledDependencies({
+      consumePlaybackGrantRateLimit: async (userId) => {
+        assert.equal(userId, "user-42");
+        return { allowed: false, retryAfterSeconds: 47 };
+      },
+      findMovie: async () => {
+        movieLookupCount += 1;
+        return null;
+      },
+      createPlaybackGrant: async () => {
+        grantRequests += 1;
+        return expectedGrant;
+      },
+    }),
+  );
+
+  assert.equal(result.status, 429);
+  assert.deepEqual(result.body, {
+    error: "Too many playback requests. Please try again shortly.",
+    code: "PLAYBACK_RATE_LIMITED",
+  });
+  assert.equal(result.retryAfterSeconds, 47);
+  assert.equal(movieLookupCount, 0);
+  assert.equal(grantRequests, 0);
+});
+
+test("rate-limit infrastructure failure fails closed before movie lookup or provider issuance", async () => {
+  let movieLookupCount = 0;
+  let grantRequests = 0;
+  const result = await authorizePlaybackRequest(
+    { userId: "user-42", slug: "sample-title", viewerCountry: "IN" },
+    enabledDependencies({
+      consumePlaybackGrantRateLimit: async () => {
+        throw new Error("database unavailable");
+      },
+      findMovie: async () => {
+        movieLookupCount += 1;
+        return null;
+      },
+      createPlaybackGrant: async () => {
+        grantRequests += 1;
+        return expectedGrant;
+      },
+    }),
+  );
+
+  assert.equal(result.status, 503);
+  assert.deepEqual(result.body, {
+    error: "Playback authorization is temporarily unavailable.",
+    code: "PLAYBACK_RATE_LIMIT_UNAVAILABLE",
+  });
+  assert.equal(movieLookupCount, 0);
+  assert.equal(grantRequests, 0);
 });
