@@ -4,7 +4,7 @@
 - **Date:** 2026-11-21
 - **Branch:** `phase-5/consolidated-security-ops`
 - **Policy:** 10 playback-grant requests per authenticated user per 5-minute window
-- **Status:** Implemented; validation pending the current-head workflow result
+- **Status:** PASS — implementation and automated validation completed
 
 ## Enforcement
 
@@ -39,3 +39,15 @@ When playback is disabled, the existing default-off gate returns before calling 
 ## Boundaries
 
 This is an application request throttle for grant issuance, not a substitute for Cloudflare token expiry, provider-side private-asset enforcement, rights checks, or edge-level signature enforcement. It does not enable playback. No new schema migration is required because the existing `RateLimitBucket` table and shared rate-limit helper are reused. No Preview or Production environment configuration, database migration, provider credential, media asset, payment, or Production resource is changed by this implementation.
+
+
+## Validation result
+
+- GitHub Actions run [#44931742994](https://github.com/Prakash7920/movieshub/actions/runs/44931742994) completed successfully on implementation commit `e6cd1ddce000f49c8b0bee5964263df639ce755f`.
+- Isolated database integration tests: **25 passed, 0 failed**. This includes the dedicated `media-playback-grant` scope test, per-user isolation, and the existing concurrent atomic-rate-limit coverage.
+- Unit tests: **77 passed, 0 failed**. This includes successful grant-budget consumption, HTTP 429 service result metadata, and fail-closed limiter-error behavior.
+- Browser E2E: **13 passed**; playback browser E2E: **10 passed**.
+- TypeScript type-check and Next.js production build: **PASS**.
+- Vercel Preview deployment `dpl_4U418gKNFPAsMDmkysB5DHW1QTdk`: **READY**; Vercel combined status: **SUCCESS**.
+
+The final documentation-only update is based on the same already-validated application/test source snapshot; it does not change executable code.
