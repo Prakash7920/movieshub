@@ -76,3 +76,27 @@ test("rate limit identifiers are normalized before hashing", async () => {
   assert.equal(first.allowed, true);
   assert.equal(second.allowed, false);
 });
+
+
+test("playback grant budget is shared per user and isolated between users", async () => {
+  const scope = "media-playback-grant";
+  const identifier = randomUUID();
+  const otherIdentifier = randomUUID();
+  const secret = process.env.RATE_LIMIT_SECRET || process.env.NEXTAUTH_SECRET;
+  assert.ok(secret && secret.length >= 32);
+  const key = createHmac("sha256", secret)
+    .update(`${scope}:${identifier.trim().toLowerCase()}`, "utf8")
+    .digest("hex");
+  testKeys.push(key);
+
+  const first = await consumeRateLimit(scope, identifier, 2, 300);
+  const second = await consumeRateLimit(scope, identifier, 2, 300);
+  const otherUser = await consumeRateLimit(scope, otherIdentifier, 2, 300);
+
+  assert.equal(first.allowed, true);
+  assert.equal(first.remaining, 1);
+  assert.equal(second.allowed, true);
+  assert.equal(second.remaining, 0);
+  assert.equal(otherUser.allowed, true);
+  assert.equal(otherUser.remaining, 1);
+});
