@@ -118,6 +118,10 @@ test("default-off provider gate returns 503 before querying Movie or calling Clo
         tokenRequests += 1;
         return expectedGrant;
       },
+      consumePlaybackGrantRateLimit: async () => {
+        rateLimitChecks += 1;
+        return { allowed: true, retryAfterSeconds: 300 };
+      },
     }),
   );
 
