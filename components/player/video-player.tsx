@@ -74,13 +74,17 @@ export function VideoPlayer({
         refreshTimer = null;
       }
 
+      const video = videoRef.current;
+      const hasConfiguredPlayback = Boolean(
+        hlsInstance || nativeHls || video?.hasAttribute("src"),
+      );
+
       hlsInstance?.destroy();
       hlsInstance = null;
       HlsConstructor = null;
       nativeHls = false;
 
-      const video = videoRef.current;
-      if (video) {
+      if (video && hasConfiguredPlayback) {
         video.pause();
         video.removeAttribute("src");
         video.load();
