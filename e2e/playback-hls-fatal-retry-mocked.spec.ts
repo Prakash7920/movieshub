@@ -1,3 +1,4 @@
+import { createMockPlaybackGrant } from "./playback-grant-fixture";
 import { expect, test } from "@playwright/test";
 
 type HlsFatalRetryState = {
@@ -14,23 +15,15 @@ declare global {
 test("recovers from a fatal HLS manifest error with a fresh grant and HLS instance", async ({ page }) => {
   const clockStart = new Date();
   const customerHost = "https://customer-mockcustomer.cloudflarestream.com";
-  const initialExpiry = new Date(clockStart.getTime() + 36_000).toISOString();
-  const recoveredExpiry = new Date(clockStart.getTime() + 5 * 60_000).toISOString();
+  const initialExpiry = new Date(clockStart.getTime() + 36_000);
+  const recoveredExpiry = new Date(clockStart.getTime() + 5 * 60_000);
   const manifestPaths: string[] = [];
   let grantRequests = 0;
   let segmentRequests = 0;
 
   const grants = [
-    {
-      protocol: "hls",
-      manifestUrl: `${customerHost}/header.fatal.signature/manifest/video.m3u8`,
-      expiresAt: initialExpiry,
-    },
-    {
-      protocol: "hls",
-      manifestUrl: `${customerHost}/header.recovered.signature/manifest/video.m3u8`,
-      expiresAt: recoveredExpiry,
-    },
+    createMockPlaybackGrant(customerHost, initialExpiry, "fatal-initial"),
+    createMockPlaybackGrant(customerHost, recoveredExpiry, "fatal-recovered"),
   ];
 
   await page.clock.install({ time: clockStart });
@@ -92,7 +85,7 @@ test("recovers from a fatal HLS manifest error with a fresh grant and HLS instan
     if (url.pathname.endsWith("/manifest/video.m3u8")) {
       manifestPaths.push(url.pathname);
 
-      if (url.pathname.includes("header.fatal.signature")) {
+      if (url.pathname === new URL(grants[0].manifestUrl).pathname) {
         // A 200 response with no #EXTM3U header causes hls.js manifest parsing
         // to emit a fatal MANIFEST_PARSING_ERROR.
         await route.fulfill({
@@ -160,8 +153,8 @@ test("recovers from a fatal HLS manifest error with a fresh grant and HLS instan
   await expect(page.getByText("Secure stream ready.", { exact: false })).toBeVisible();
   await expect(page.getByRole("button", { name: "Retry playback" })).toHaveCount(0);
 
-  expect(manifestPaths[0]).toContain("header.fatal.signature");
-  expect(manifestPaths[1]).toContain("header.recovered.signature");
+  expect(manifestPaths[0]).toBe(new URL(grants[0].manifestUrl).pathname);
+  expect(manifestPaths[1]).toBe(new URL(grants[1].manifestUrl).pathname);
 
   const recoveredEngineState = await page.evaluate(() => ({
     createdObjectUrls: window.__nexafilmHlsFatalRetry?.createdObjectUrls ?? 0,
