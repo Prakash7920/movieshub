@@ -64,6 +64,10 @@ export function VideoPlayer({
     let nativeHls = false;
     let refreshTimer: number | null = null;
 
+    function startHlsLoading() {
+      hlsInstance?.startLoad();
+    }
+
     async function requestPlaybackGrant(): Promise<PlaybackGrant> {
       const response = await fetch(
         `/api/media/${encodeURIComponent(slug)}`,
@@ -186,7 +190,10 @@ export function VideoPlayer({
             enableWorker: true,
             lowLatencyMode: false,
             backBufferLength: 60,
+            autoStartLoad: false,
           });
+
+          video.addEventListener("play", startHlsLoading);
 
           hlsInstance.on(Hls.Events.ERROR, (_event, data) => {
             if (data.fatal && !disposed) {
@@ -237,6 +244,7 @@ export function VideoPlayer({
 
       const video = videoRef.current;
       if (video) {
+        video.removeEventListener("play", startHlsLoading);
         video.pause();
         video.removeAttribute("src");
         video.load();
