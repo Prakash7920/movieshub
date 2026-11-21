@@ -1,3 +1,4 @@
+import { createMockPlaybackGrant } from "./playback-grant-fixture";
 import { expect, test, type Page } from "@playwright/test";
 
 type NativeFailureState = {
@@ -100,11 +101,13 @@ test("rejects an expired initial grant without assigning or requesting a media m
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({
-        protocol: "hls",
-        manifestUrl: `${customerHost}/header.expired.signature/manifest/video.m3u8`,
-        expiresAt: new Date(clockStart.getTime() - 1_000).toISOString(),
-      }),
+      body: JSON.stringify(
+        createMockPlaybackGrant(
+          customerHost,
+          new Date(clockStart.getTime() - 1_000),
+          "expired",
+        ),
+      ),
     });
   });
   await page.route(`${customerHost}/**`, async (route) => {
@@ -135,11 +138,11 @@ test("rejects an expired initial grant without assigning or requesting a media m
 test("stops playback and clears the old source when a renewal request fails", async ({ page }) => {
   const clockStart = new Date();
   const customerHost = "https://customer-mockcustomer.cloudflarestream.com";
-  const initialGrant = {
-    protocol: "hls",
-    manifestUrl: `${customerHost}/header.valid.signature/manifest/video.m3u8`,
-    expiresAt: new Date(clockStart.getTime() + 36_000).toISOString(),
-  };
+  const initialGrant = createMockPlaybackGrant(
+    customerHost,
+    new Date(clockStart.getTime() + 36_000),
+    "valid-initial",
+  );
   let grantRequests = 0;
 
   await page.clock.install({ time: clockStart });
@@ -178,7 +181,7 @@ test("stops playback and clears the old source when a renewal request fails", as
   await expect(page.getByText("Secure stream ready.", { exact: false })).toBeVisible();
 
   const initialSource = await page.evaluate(() => window.__nexafilmNativeFailureMock?.source ?? "");
-  expect(initialSource).toContain("header.valid.signature");
+  expect(initialSource).toBe(initialGrant.manifestUrl);
 
   await page.evaluate(() => {
     const state = window.__nexafilmNativeFailureMock;
@@ -204,7 +207,7 @@ test("stops playback and clears the old source when a renewal request fails", as
   }));
 
   expect(failedState.source).toBe("");
-  expect(failedState.sourceAssignments[0]).toContain("header.valid.signature");
+  expect(failedState.sourceAssignments[0]).toBe(initialGrant.manifestUrl);
   expect(failedState.sourceAssignments[failedState.sourceAssignments.length - 1]).toBe("");
   expect(failedState.currentTime).toBe(67.25);
   expect(failedState.paused).toBe(true);
@@ -223,11 +226,11 @@ test("recovers from an initial grant failure with one guarded retry and a fresh 
   const customerHost = "https://customer-mockcustomer.cloudflarestream.com";
   let grantRequests = 0;
   const manifestRequests: string[] = [];
-  const recoveredGrant = {
-    protocol: "hls",
-    manifestUrl: `${customerHost}/header.retry-recovered.signature/manifest/video.m3u8`,
-    expiresAt: new Date(clockStart.getTime() + 5 * 60_000).toISOString(),
-  };
+  const recoveredGrant = createMockPlaybackGrant(
+    customerHost,
+    new Date(clockStart.getTime() + 5 * 60_000),
+    "retry-recovered",
+  );
 
   await page.clock.install({ time: clockStart });
   await installNativeFailureMock(page);
@@ -284,7 +287,7 @@ test("recovers from an initial grant failure with one guarded retry and a fresh 
     paused: window.__nexafilmNativeFailureMock?.paused ?? true,
     loadCalls: window.__nexafilmNativeFailureMock?.loadCalls ?? 0,
   }));
-  expect(recoveredState.source).toContain("header.retry-recovered.signature");
+  expect(recoveredState.source).toBe(recoveredGrant.manifestUrl);
   expect(recoveredState.sourceAssignments).toContain(recoveredGrant.manifestUrl);
   expect(recoveredState.paused).toBe(true);
   expect(recoveredState.loadCalls).toBeGreaterThan(0);
