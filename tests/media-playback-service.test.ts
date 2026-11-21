@@ -106,6 +106,7 @@ test("unknown account and unknown title fail closed", async () => {
 test("default-off provider gate returns 503 before querying Movie or calling Cloudflare", async () => {
   let movieLookups = 0;
   let tokenRequests = 0;
+  let rateLimitChecks = 0;
   const result = await authorizePlaybackRequest(
     { userId: "user-1", slug: "sample-title", viewerCountry: "IN" },
     dependencies({
@@ -128,6 +129,10 @@ test("default-off provider gate returns 503 before querying Movie or calling Clo
         movieLookups += 1;
         return null;
       },
+      consumePlaybackGrantRateLimit: async () => {
+        rateLimitChecks += 1;
+        return { allowed: true, retryAfterSeconds: 300 };
+      },
     }),
   );
 
@@ -136,6 +141,7 @@ test("default-off provider gate returns 503 before querying Movie or calling Clo
   assert.equal("code" in disabled.body && disabled.body.code, "MEDIA_DELIVERY_NOT_CONFIGURED");
   assert.equal(movieLookups, 1);
   assert.equal(tokenRequests, 0);
+  assert.equal(rateLimitChecks, 1); // the enabled path consumed once; disabled path skipped it
 });
 
 test("missing viewer territory is denied without attempting media delivery", async () => {
