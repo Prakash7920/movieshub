@@ -5,6 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { getVercelViewerCountry } from "@/lib/licensing/territory";
 import { getUserEntitlements } from "@/lib/subscriptions/entitlements";
 import { authorizePlaybackRequest } from "@/lib/media/playback-service";
+import {
+  createCloudflareStreamPlaybackGrant,
+  getCloudflareStreamConfigFromEnv,
+} from "@/lib/media/cloudflare-stream";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +21,7 @@ export async function GET(
     const session = await getServerSession(authOptions);
     const sessionUser = session?.user as { id?: string } | undefined;
     const { slug } = await context.params;
+    const cloudflareConfig = getCloudflareStreamConfigFromEnv();
 
     const result = await authorizePlaybackRequest(
       {
@@ -37,7 +42,7 @@ export async function GET(
               isPublished: true,
               contentStatus: true,
               movieType: true,
-              videoUrl: true,
+              cloudflareStreamUid: true,
               license: {
                 select: {
                   status: true,
@@ -50,6 +55,13 @@ export async function GET(
           }),
         getPremiumEntitlement: async (userId) =>
           (await getUserEntitlements(userId)).isPremium,
+        createPlaybackGrant: cloudflareConfig
+          ? (assetUid, viewerCountry) =>
+              createCloudflareStreamPlaybackGrant(
+                { assetUid, viewerCountry },
+                cloudflareConfig,
+              )
+          : undefined,
       },
     );
 
