@@ -255,3 +255,30 @@ export async function createCloudflareStreamPlaybackGrant(
     expiresAt: new Date(expiresAtSeconds * 1000).toISOString(),
   };
 }
+
+/**
+ * Reads Cloudflare Stream settings only when the explicit feature flag is on.
+ * Missing or malformed settings keep playback disabled; no default-on path.
+ */
+export function getCloudflareStreamConfigFromEnv(
+  values: Readonly<Record<string, string | undefined>> = process.env,
+): CloudflareStreamConfig | null {
+  if (values.CLOUDFLARE_STREAM_ENABLED !== "true") {
+    return null;
+  }
+
+  const accountId = values.CLOUDFLARE_ACCOUNT_ID?.trim() ?? "";
+  const apiToken = values.CLOUDFLARE_STREAM_API_TOKEN?.trim() ?? "";
+  const customerCode = values.CLOUDFLARE_STREAM_CUSTOMER_CODE?.trim() ?? "";
+
+  if (
+    !/^[a-f0-9]{32}$/i.test(accountId) ||
+    !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(customerCode) ||
+    !apiToken ||
+    /[\r\n]/.test(apiToken)
+  ) {
+    return null;
+  }
+
+  return { accountId, apiToken, customerCode };
+}
