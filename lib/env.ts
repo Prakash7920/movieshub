@@ -29,6 +29,11 @@ const baseEnvSchema = z.object({
 
   MEDIA_SIGNING_SECRET: z.string().optional(),
 
+  CLOUDFLARE_STREAM_ENABLED: z.enum(["true", "false", ""]).optional(),
+  CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
+  CLOUDFLARE_STREAM_API_TOKEN: z.string().optional(),
+  CLOUDFLARE_STREAM_CUSTOMER_CODE: z.string().optional(),
+
   AI_API_KEY: z.string().optional(),
 
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
