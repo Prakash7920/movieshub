@@ -1,5 +1,4 @@
 import { createMockPlaybackGrant } from "./playback-grant-fixture";
-import { createMockPlaybackGrant } from "./playback-grant-fixture";
 import { expect, test } from "@playwright/test";
 
 type NativeMockState = {
