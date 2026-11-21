@@ -1,3 +1,4 @@
+import { createMockPlaybackGrant } from "./playback-grant-fixture";
 import { expect, test } from "@playwright/test";
 
 type NativeMockState = {
@@ -117,7 +118,7 @@ test("native HLS fallback renews a grant and restores playback after loadedmetad
     source: window.__nexafilmNativeMock?.source ?? "",
     assignments: window.__nexafilmNativeMock?.sourceAssignments ?? [],
   }));
-  expect(initialState.source).toContain("header.native-initial.signature");
+  expect(initialState.source).toBe(grants[0].manifestUrl);
   expect(initialState.assignments).toHaveLength(1);
 
   await page.evaluate(() => {
@@ -149,9 +150,9 @@ test("native HLS fallback renews a grant and restores playback after loadedmetad
     loadCalls: window.__nexafilmNativeMock?.loadCalls ?? 0,
   }));
 
-  expect(recoveredState.source).toContain("header.native-refreshed.signature");
-  expect(recoveredState.assignments[0]).toContain("header.native-initial.signature");
-  expect(recoveredState.assignments[1]).toContain("header.native-refreshed.signature");
+  expect(recoveredState.source).toBe(grants[1].manifestUrl);
+  expect(recoveredState.assignments[0]).toBe(grants[0].manifestUrl);
+  expect(recoveredState.assignments[1]).toBe(grants[1].manifestUrl);
   expect(recoveredState.loadCalls).toBe(1);
   expect(recoveredState.currentTime).toBe(88.75);
   expect(recoveredState.currentTimeAssignments).toContain(88.75);
