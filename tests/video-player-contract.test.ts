@@ -26,9 +26,11 @@ test("player renders a fail-closed shell when playback approval is off", () => {
 
   assert.match(markup, /Playback disabled/);
   assert.match(markup, /Secure delivery pending/);
-  assert.doesNotMatch(markup, /<video\b/i);
-  assert.doesNotMatch(markup, /<source\b/i);
-  assert.doesNotMatch(markup, /controlsList|autoplay|src=/i);
+  assert.equal(markup.includes("<video"), false);
+  assert.equal(markup.includes("<source"), false);
+  assert.equal(markup.includes("controlsList"), false);
+  assert.equal(markup.includes("autoplay"), false);
+  assert.equal(markup.includes("src="), false);
 });
 
 test("approved player shell contains no inline or caller-supplied source before grant fetch", () => {
@@ -40,9 +42,9 @@ test("approved player shell contains no inline or caller-supplied source before 
     }),
   );
 
-  assert.match(markup, /<video\b/i);
-  assert.match(markup, /controls/);
-  assert.doesNotMatch(markup, /<source\b/i);
-  assert.doesNotMatch(markup, /src=/i);
-  assert.doesNotMatch(markup, /autoplay/i);
+  assert.equal(markup.includes("<video"), true);
+  assert.equal(markup.includes('controls=""'), true);
+  assert.equal(markup.includes("<source"), false);
+  assert.equal(markup.includes("src="), false);
+  assert.equal(markup.includes("autoplay"), false);
 });
