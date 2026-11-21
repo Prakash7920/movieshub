@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { parsePlaybackGrant } from "@/lib/media/playback-grant";
+import { parsePlaybackGrant, type PlaybackGrant } from "@/lib/media/playback-grant";
 
 export type VideoPlayerProps = {
   title: string;
@@ -12,6 +12,7 @@ export type VideoPlayerProps = {
 type PlayerState = "disabled" | "loading" | "ready" | "error";
 
 const HLS_MIME_TYPE = "application/vnd.apple.mpegurl";
+const GRANT_REFRESH_EARLY_MS = 30_000;
 
 function PlaybackDisabled({ title }: { title: string }) {
   return (
@@ -59,6 +60,100 @@ export function VideoPlayer({
     const controller = new AbortController();
     let disposed = false;
     let hlsInstance: import("hls.js").default | null = null;
+    let HlsConstructor: typeof import("hls.js").default | null = null;
+    let nativeHls = false;
+    let refreshTimer: ReturnType<typeof window.setTimeout> | null = null;
+
+    async function requestPlaybackGrant(): Promise<PlaybackGrant> {
+      const response = await fetch(
+        `/api/media/${encodeURIComponent(slug)}`,
+        {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+          signal: controller.signal,
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Secure playback is currently unavailable.");
+      }
+
+      const grant = parsePlaybackGrant(await response.json());
+      if (!grant) {
+        throw new Error("The playback service returned an invalid or expired grant.");
+      }
+
+      return grant;
+    }
+
+    function scheduleGrantRefresh(grant: PlaybackGrant) {
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+      }
+
+      const expiresAt = Date.parse(grant.expiresAt);
+      const refreshIn = Math.max(
+        1_000,
+        expiresAt - Date.now() - GRANT_REFRESH_EARLY_MS,
+      );
+
+      refreshTimer = window.setTimeout(() => {
+        void refreshPlaybackGrant();
+      }, refreshIn);
+    }
+
+    async function refreshPlaybackGrant() {
+      try {
+        const nextGrant = await requestPlaybackGrant();
+        if (disposed) return;
+
+        const video = videoRef.current;
+        if (!video) return;
+
+        const previousTime = video.currentTime;
+        const shouldResume = !video.paused;
+
+        if (nativeHls) {
+          const restorePlayback = () => {
+            if (disposed) return;
+            if (Number.isFinite(previousTime) && previousTime > 0) {
+              video.currentTime = previousTime;
+            }
+            if (shouldResume) {
+              void video.play().catch(() => undefined);
+            }
+          };
+
+          video.addEventListener("loadedmetadata", restorePlayback, { once: true });
+          video.src = nextGrant.manifestUrl;
+          video.load();
+        } else if (hlsInstance && HlsConstructor) {
+          hlsInstance.once(HlsConstructor.Events.MANIFEST_PARSED, () => {
+            if (disposed) return;
+            if (Number.isFinite(previousTime) && previousTime > 0) {
+              video.currentTime = previousTime;
+            }
+            if (shouldResume) {
+              void video.play().catch(() => undefined);
+            }
+          });
+          hlsInstance.loadSource(nextGrant.manifestUrl);
+        } else {
+          return;
+        }
+
+        scheduleGrantRefresh(nextGrant);
+      } catch {
+        if (controller.signal.aborted || disposed) return;
+        if (refreshTimer !== null) {
+          window.clearTimeout(refreshTimer);
+          refreshTimer = null;
+        }
+        setPlayerState("error");
+      }
+    }
 
     async function preparePlayback() {
       const video = videoRef.current;
@@ -67,33 +162,17 @@ export function VideoPlayer({
       setPlayerState("loading");
 
       try {
-        const response = await fetch(
-          `/api/media/${encodeURIComponent(slug)}`,
-          {
-            method: "GET",
-            credentials: "same-origin",
-            cache: "no-store",
-            headers: { Accept: "application/json" },
-            signal: controller.signal,
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error("Secure playback is currently unavailable.");
-        }
-
-        const grant = parsePlaybackGrant(await response.json());
-        if (!grant) {
-          throw new Error("The playback service returned an invalid or expired grant.");
-        }
+        const grant = await requestPlaybackGrant();
         if (disposed) return;
 
-        // Prefer native HLS only where Managed Media Source is available.
+        // Prefer native HLS where Managed Media Source is available.
         if (
           video.canPlayType(HLS_MIME_TYPE) &&
           "ManagedMediaSource" in window
         ) {
+          nativeHls = true;
           video.src = grant.manifestUrl;
+          scheduleGrantRefresh(grant);
           setPlayerState("ready");
           return;
         }
@@ -102,6 +181,7 @@ export function VideoPlayer({
         if (disposed) return;
 
         if (Hls.isSupported()) {
+          HlsConstructor = Hls;
           hlsInstance = new Hls({
             enableWorker: true,
             lowLatencyMode: false,
@@ -110,6 +190,10 @@ export function VideoPlayer({
 
           hlsInstance.on(Hls.Events.ERROR, (_event, data) => {
             if (data.fatal && !disposed) {
+              if (refreshTimer !== null) {
+                window.clearTimeout(refreshTimer);
+                refreshTimer = null;
+              }
               setPlayerState("error");
               hlsInstance?.destroy();
               hlsInstance = null;
@@ -118,19 +202,22 @@ export function VideoPlayer({
 
           hlsInstance.loadSource(grant.manifestUrl);
           hlsInstance.attachMedia(video);
+          scheduleGrantRefresh(grant);
           setPlayerState("ready");
           return;
         }
 
         // Last-resort native fallback for browsers exposing HLS but not MSE.
         if (video.canPlayType(HLS_MIME_TYPE)) {
+          nativeHls = true;
           video.src = grant.manifestUrl;
+          scheduleGrantRefresh(grant);
           setPlayerState("ready");
           return;
         }
 
         throw new Error("This browser does not support secure HLS playback.");
-      } catch (error) {
+      } catch {
         if (controller.signal.aborted || disposed) return;
         setPlayerState("error");
       }
@@ -141,6 +228,10 @@ export function VideoPlayer({
     return () => {
       disposed = true;
       controller.abort();
+
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+      }
       hlsInstance?.destroy();
       hlsInstance = null;
 
