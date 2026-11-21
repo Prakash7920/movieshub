@@ -3,11 +3,25 @@ import { test } from "node:test";
 import { parsePlaybackGrant } from "../lib/media/playback-grant";
 
 const now = Date.parse("2026-11-21T00:00:00.000Z");
+const grantExpiry = now + 5 * 60 * 1000;
+
+function base64UrlJson(value: Record<string, unknown>): string {
+  return btoa(JSON.stringify(value))
+    .replace(/=/g, "")
+    .replace(/\\+/g, "-")
+    .replace(/\\//g, "_");
+}
+
+function signedTokenForExpiry(expiryMs: number): string {
+  const header = base64UrlJson({ alg: "RS256", kid: "unit-test-key" });
+  const payload = base64UrlJson({ exp: String(expiryMs / 1000) });
+  return `${header}.${payload}.mock-signature`;
+}
+
 const validGrant = {
   protocol: "hls",
-  manifestUrl:
-    "https://customer-testcustomer123.cloudflarestream.com/header.payload.signature/manifest/video.m3u8",
-  expiresAt: new Date(now + 5 * 60 * 1000).toISOString(),
+  manifestUrl: `https://customer-testcustomer123.cloudflarestream.com/${signedTokenForExpiry(grantExpiry)}/manifest/video.m3u8`,
+  expiresAt: new Date(grantExpiry).toISOString(),
 };
 
 test("accepts a valid short-lived Cloudflare signed HLS grant", () => {
@@ -80,21 +94,69 @@ test("rejects URLs containing credentials, query strings, or fragments", () => {
   }
 });
 
-test("rejects expired grants and grants with expiry beyond the short-lived window", () => {
+test("accepts a grant one millisecond before its signed expiry", () => {
+  assert.ok(parsePlaybackGrant(validGrant, grantExpiry - 1));
+});
+
+test("rejects a grant at the exact signed expiry boundary", () => {
+  assert.equal(parsePlaybackGrant(validGrant, grantExpiry), null);
+});
+
+test("rejects a grant one millisecond after its signed expiry", () => {
+  assert.equal(parsePlaybackGrant(validGrant, grantExpiry + 1), null);
+});
+
+test("rejects expiry metadata that does not exactly match the signed JWT exp claim", () => {
   assert.equal(
     parsePlaybackGrant(
-      { ...validGrant, expiresAt: new Date(now).toISOString() },
+      { ...validGrant, expiresAt: new Date(grantExpiry + 1000).toISOString() },
       now,
     ),
     null,
   );
   assert.equal(
     parsePlaybackGrant(
-      { ...validGrant, expiresAt: new Date(now - 1).toISOString() },
+      { ...validGrant, expiresAt: new Date(grantExpiry - 1000).toISOString() },
       now,
     ),
     null,
   );
+  assert.equal(
+    parsePlaybackGrant(
+      { ...validGrant, expiresAt: new Date(grantExpiry + 1).toISOString() },
+      now,
+    ),
+    null,
+  );
+});
+
+test("rejects malformed tokens, unexpected algorithms, and missing expiry claims", () => {
+  const host = "https://customer-testcustomer123.cloudflarestream.com";
+  const validHeader = base64UrlJson({ alg: "RS256", kid: "unit-test-key" });
+  const invalidHeader = base64UrlJson({ alg: "HS256", kid: "unit-test-key" });
+  const missingExpiry = base64UrlJson({ nbf: String(now / 1000) });
+  const validPayload = base64UrlJson({ exp: String(grantExpiry / 1000) });
+  const malformedTokens = [
+    "header.payload.signature",
+    `${invalidHeader}.${validPayload}.mock-signature`,
+    `${validHeader}.${missingExpiry}.mock-signature`,
+  ];
+
+  for (const token of malformedTokens) {
+    assert.equal(
+      parsePlaybackGrant(
+        {
+          ...validGrant,
+          manifestUrl: `${host}/${token}/manifest/video.m3u8`,
+        },
+        now,
+      ),
+      null,
+    );
+  }
+});
+
+test("rejects grants with expiry beyond the short-lived window", () => {
   assert.equal(
     parsePlaybackGrant(
       { ...validGrant, expiresAt: new Date(now + 17 * 60 * 1000).toISOString() },
