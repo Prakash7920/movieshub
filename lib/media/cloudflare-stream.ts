@@ -1,4 +1,4 @@
-import { getCloudflareSignedTokenExpirySeconds } from "@/lib/media/cloudflare-token-expiry";
+import { getCloudflareSignedTokenExpirySeconds } from "./cloudflare-token-expiry";
 
 export type CloudflareStreamConfig = {
   accountId: string;
