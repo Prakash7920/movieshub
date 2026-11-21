@@ -135,7 +135,7 @@ test("renews a mocked HLS grant and restores playback position without contactin
   });
 
   // The first grant expires in 36 seconds, so the client should refresh at +6s.
-  await page.clock.fastForward("7s");
+  await page.clock.fastForward(7_000);
 
   await expect.poll(() => grantRequests, { timeout: 10_000 }).toBe(2);
   await expect.poll(() => manifestUrls.length, { timeout: 10_000 }).toBe(2);
