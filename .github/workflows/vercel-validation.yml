@@ -80,4 +80,4 @@ jobs:
           NEXTAUTH_URL: http://127.0.0.1:3000
           NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
           DEMO_MODE: "false"
-        run: npm run test:e2e
+        run: npm run test:e2e && npm run test:e2e:playback
