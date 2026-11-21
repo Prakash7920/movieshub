@@ -361,6 +361,7 @@ test("Cloudflare Stream configuration requires the explicit feature flag and all
   assert.equal(
     getCloudflareStreamConfigFromEnv({
       CLOUDFLARE_STREAM_ENABLED: "true",
+      CLOUDFLARE_PLAYBACK_ENABLED: "true",
       CLOUDFLARE_ACCOUNT_ID: config.accountId,
       CLOUDFLARE_STREAM_API_TOKEN: config.apiToken,
     }),
@@ -369,6 +370,7 @@ test("Cloudflare Stream configuration requires the explicit feature flag and all
   assert.equal(
     getCloudflareStreamConfigFromEnv({
       CLOUDFLARE_STREAM_ENABLED: "false",
+      CLOUDFLARE_PLAYBACK_ENABLED: "true",
       CLOUDFLARE_ACCOUNT_ID: config.accountId,
       CLOUDFLARE_STREAM_API_TOKEN: config.apiToken,
       CLOUDFLARE_STREAM_CUSTOMER_CODE: config.customerCode,
@@ -377,10 +379,28 @@ test("Cloudflare Stream configuration requires the explicit feature flag and all
   );
 });
 
+test("Cloudflare playback remains disabled unless the separate approval flag is true", () => {
+  const streamOnly = getCloudflareStreamConfigFromEnv({
+    CLOUDFLARE_STREAM_ENABLED: "true",
+    CLOUDFLARE_ACCOUNT_ID: config.accountId,
+    CLOUDFLARE_STREAM_API_TOKEN: config.apiToken,
+    CLOUDFLARE_STREAM_CUSTOMER_CODE: config.customerCode,
+  });
+  const playbackOnly = getCloudflareStreamConfigFromEnv({
+    CLOUDFLARE_PLAYBACK_ENABLED: "true",
+    CLOUDFLARE_ACCOUNT_ID: config.accountId,
+    CLOUDFLARE_STREAM_API_TOKEN: config.apiToken,
+    CLOUDFLARE_STREAM_CUSTOMER_CODE: config.customerCode,
+  });
+  assert.equal(streamOnly, null);
+  assert.equal(playbackOnly, null);
+});
+
 test("Cloudflare Stream configuration rejects malformed identifiers and multiline credentials", () => {
   assert.equal(
     getCloudflareStreamConfigFromEnv({
       CLOUDFLARE_STREAM_ENABLED: "true",
+      CLOUDFLARE_PLAYBACK_ENABLED: "true",
       CLOUDFLARE_ACCOUNT_ID: "not-an-account",
       CLOUDFLARE_STREAM_API_TOKEN: config.apiToken,
       CLOUDFLARE_STREAM_CUSTOMER_CODE: config.customerCode,
@@ -390,6 +410,7 @@ test("Cloudflare Stream configuration rejects malformed identifiers and multilin
   assert.equal(
     getCloudflareStreamConfigFromEnv({
       CLOUDFLARE_STREAM_ENABLED: "true",
+      CLOUDFLARE_PLAYBACK_ENABLED: "true",
       CLOUDFLARE_ACCOUNT_ID: config.accountId,
       CLOUDFLARE_STREAM_API_TOKEN: "bad\ntoken",
       CLOUDFLARE_STREAM_CUSTOMER_CODE: config.customerCode,
@@ -402,6 +423,7 @@ test("Cloudflare Stream configuration becomes available only with the explicit g
   assert.deepEqual(
     getCloudflareStreamConfigFromEnv({
       CLOUDFLARE_STREAM_ENABLED: "true",
+      CLOUDFLARE_PLAYBACK_ENABLED: "true",
       CLOUDFLARE_ACCOUNT_ID: config.accountId,
       CLOUDFLARE_STREAM_API_TOKEN: config.apiToken,
       CLOUDFLARE_STREAM_CUSTOMER_CODE: config.customerCode,
