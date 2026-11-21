@@ -407,7 +407,7 @@ test("unmount removes the HLS.js play listener and releases its media object URL
         "segment.ts",
         "#EXT-X-ENDLIST",
         "",
-      ].join("\\n"),
+      ].join("\n"),
     });
   });
 
