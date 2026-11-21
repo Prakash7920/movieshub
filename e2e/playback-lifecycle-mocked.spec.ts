@@ -319,15 +319,17 @@ test("unmount removes the HLS.js play listener and releases its media object URL
       });
     }
 
-    const trackedPlayHandlers = new Set<EventListenerOrEventListenerObject>();
+    let componentPlayHandler: EventListenerOrEventListenerObject | null = null;
     const originalAddEventListener = HTMLMediaElement.prototype.addEventListener;
     HTMLMediaElement.prototype.addEventListener = function (
       type: string,
       listener: EventListenerOrEventListenerObject | null,
       options?: boolean | AddEventListenerOptions,
     ) {
-      if (type === "play" && listener) {
-        trackedPlayHandlers.add(listener);
+      // The component registers its own play handler before Hls.js
+      // attaches internal media listeners. Capture that exact reference.
+      if (type === "play" && listener && componentPlayHandler === null) {
+        componentPlayHandler = listener;
         state.playHandlerAdds += 1;
       }
       return originalAddEventListener.call(
@@ -343,8 +345,8 @@ test("unmount removes the HLS.js play listener and releases its media object URL
       listener: EventListenerOrEventListenerObject | null,
       options?: boolean | EventListenerOptions,
     ) {
-      if (type === "play" && listener && trackedPlayHandlers.has(listener)) {
-        trackedPlayHandlers.delete(listener);
+      if (type === "play" && listener && listener === componentPlayHandler) {
+        componentPlayHandler = null;
         state.playHandlerRemoves += 1;
       }
       return originalRemoveEventListener.call(
