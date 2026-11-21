@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   CloudflareStreamDeliveryError,
   createCloudflareStreamPlaybackGrant,
+  getCloudflareStreamConfigFromEnv,
   type CloudflareFetch,
 } from "../lib/media/cloudflare-stream";
 
@@ -343,4 +344,68 @@ test("does not allow public downloads in the signed token request", async () => 
   );
 
   assert.equal(requestBody?.downloadable, false);
+});
+
+test("Cloudflare Stream configuration is disabled by default even when credentials exist", () => {
+  assert.equal(
+    getCloudflareStreamConfigFromEnv({
+      CLOUDFLARE_ACCOUNT_ID: config.accountId,
+      CLOUDFLARE_STREAM_API_TOKEN: config.apiToken,
+      CLOUDFLARE_STREAM_CUSTOMER_CODE: config.customerCode,
+    }),
+    null,
+  );
+});
+
+test("Cloudflare Stream configuration requires the explicit feature flag and all credentials", () => {
+  assert.equal(
+    getCloudflareStreamConfigFromEnv({
+      CLOUDFLARE_STREAM_ENABLED: "true",
+      CLOUDFLARE_ACCOUNT_ID: config.accountId,
+      CLOUDFLARE_STREAM_API_TOKEN: config.apiToken,
+    }),
+    null,
+  );
+  assert.equal(
+    getCloudflareStreamConfigFromEnv({
+      CLOUDFLARE_STREAM_ENABLED: "false",
+      CLOUDFLARE_ACCOUNT_ID: config.accountId,
+      CLOUDFLARE_STREAM_API_TOKEN: config.apiToken,
+      CLOUDFLARE_STREAM_CUSTOMER_CODE: config.customerCode,
+    }),
+    null,
+  );
+});
+
+test("Cloudflare Stream configuration rejects malformed identifiers and multiline credentials", () => {
+  assert.equal(
+    getCloudflareStreamConfigFromEnv({
+      CLOUDFLARE_STREAM_ENABLED: "true",
+      CLOUDFLARE_ACCOUNT_ID: "not-an-account",
+      CLOUDFLARE_STREAM_API_TOKEN: config.apiToken,
+      CLOUDFLARE_STREAM_CUSTOMER_CODE: config.customerCode,
+    }),
+    null,
+  );
+  assert.equal(
+    getCloudflareStreamConfigFromEnv({
+      CLOUDFLARE_STREAM_ENABLED: "true",
+      CLOUDFLARE_ACCOUNT_ID: config.accountId,
+      CLOUDFLARE_STREAM_API_TOKEN: "bad\ntoken",
+      CLOUDFLARE_STREAM_CUSTOMER_CODE: config.customerCode,
+    }),
+    null,
+  );
+});
+
+test("Cloudflare Stream configuration becomes available only with the explicit gate and valid values", () => {
+  assert.deepEqual(
+    getCloudflareStreamConfigFromEnv({
+      CLOUDFLARE_STREAM_ENABLED: "true",
+      CLOUDFLARE_ACCOUNT_ID: config.accountId,
+      CLOUDFLARE_STREAM_API_TOKEN: config.apiToken,
+      CLOUDFLARE_STREAM_CUSTOMER_CODE: config.customerCode,
+    }),
+    config,
+  );
 });
