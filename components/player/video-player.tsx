@@ -50,6 +50,8 @@ export function VideoPlayer({
   const [playerState, setPlayerState] = useState<PlayerState>(
     playbackEnabled ? "loading" : "disabled",
   );
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const retryLockedRef = useRef(false);
 
   useEffect(() => {
     if (!playbackEnabled) {
@@ -61,6 +63,8 @@ export function VideoPlayer({
     // clear the ref before passive-effect cleanup runs during unmount.
     const activeVideo = videoRef.current;
     if (!activeVideo) return;
+
+    retryLockedRef.current = false;
 
     const controller = new AbortController();
     let disposed = false;
@@ -97,6 +101,14 @@ export function VideoPlayer({
 
       setPlayerState("error");
     }
+
+    function handleMediaError() {
+      if (!disposed) {
+        failPlaybackClosed();
+      }
+    }
+
+    activeVideo.addEventListener("error", handleMediaError);
 
     async function requestPlaybackGrant(): Promise<PlaybackGrant> {
       const response = await fetch(
@@ -269,12 +281,21 @@ export function VideoPlayer({
       const video = activeVideo;
       if (video) {
         video.removeEventListener("play", startHlsLoading);
+        video.removeEventListener("error", handleMediaError);
         video.pause();
         video.removeAttribute("src");
         video.load();
       }
     };
-  }, [playbackEnabled, slug]);
+  }, [playbackEnabled, slug, retryAttempt]);
+
+  function handleRetry() {
+    if (playerState !== "error" || retryLockedRef.current) return;
+
+    retryLockedRef.current = true;
+    setPlayerState("loading");
+    setRetryAttempt((attempt) => attempt + 1);
+  }
 
   if (!playbackEnabled) {
     return <PlaybackDisabled title={title} />;
@@ -294,12 +315,22 @@ export function VideoPlayer({
         disablePictureInPicture
         className="aspect-video w-full bg-black"
         aria-label={`${title} video player`}
-        onError={() => setPlayerState("error")}
       />
       <div className="border-t border-white/10 px-4 py-3 text-sm text-gray-400" aria-live="polite">
         {playerState === "loading" && "Preparing secure stream…"}
         {playerState === "ready" && "Secure stream ready. Press play when you are ready."}
-        {playerState === "error" && "Secure playback could not be started. Please try again later."}
+        {playerState === "error" && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p>Secure playback could not be started. Please try again later.</p>
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="rounded-full border border-white/20 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              Retry playback
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );
