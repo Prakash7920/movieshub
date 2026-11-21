@@ -51,17 +51,17 @@ This checkpoint supersedes the *current-state conclusions* in the earlier Phase 
 | Browser grant/player lifecycle | Current-head GitHub Actions run [#547](https://github.com/Prakash7920/movieshub/actions/runs/44885183365) completed successfully, including browser E2E. These playback-enabled scenarios use synthetic JWT-shaped fixtures and mocked provider/CDN requests. | **PASS — mocked E2E** |
 | Preview deployment | Vercel Preview deployment `dpl_5BBgnudJuz6RnjEA48Wkqjkot28R` was READY for source snapshot `ba43e34`. | **PASS — deployment state** |
 | Preview provider configuration | Read-only branch-scoped Vercel environment metadata listed no `CLOUDFLARE_*` variables for this Preview branch. Values were not decrypted or disclosed. | **PASS — provider remains unconfigured** |
-| Cloudflare Stream adoption and cost approval | Provider decision is still recommendation-only; no owner approval or `CLOUDFLARE_*` Preview configuration is recorded. Current official pricing is documented in Phase 5.28. | **BLOCKED — OWNER APPROVAL REQUIRED** |
+| Cloudflare Stream owner approval | Phase 5.29 intake prepared; no explicit owner acceptance of storage/delivery charges or the no-hard-cap limitation is recorded. Preview has no `CLOUDFLARE_*` configuration. | **PENDING — OWNER DECISION REQUIRED** |
 | Rights-evidence verification method | Admin approval requires a confirmation and signed-agreement reference, but the `License` schema stores no agreement attachment/hash; actual contract inspection must remain a human-controlled off-platform review. | **MANUAL CONTROL REQUIRED** |
 | Authenticated Preview grant issuance | No live authenticated request against a configured Cloudflare Stream asset was performed. | **NOT TESTED** |
 | Real Cloudflare signature/edge validation | No real token, HLS manifest, segment request, token-expiry-at-edge, country-denial, or public-ID-denial test has been run. | **BLOCKED** |
-| Non-production test asset and rights evidence | Phase 5.28 read-only query of the isolated Preview/E2E DB found 0 Movie rows, 0 `License` rows, 0 provider asset UIDs, and no signed agreement evidence. The admin workflow stores a reference string only; actual agreement review remains an owner/admin responsibility. | **BLOCKED — NOT READY** |
+| Non-production test asset and rights evidence | Phase 5.28 isolated DB query found 0 Movie rows, 0 `License` rows and 0 asset UIDs. Phase 5.29 intake confirms no asset or underlying signed rights document has been supplied; a free-text reference is not independent proof. | **BLOCKED — NOT READY** |
 | New asset UID migration on target DB | Phase 5.27 read-only verification on isolated Neon `nexafilm-e2e-isolated/test/movieshub_test`: successful ledger row, matching SHA-256, nullable `text` column and unique index; 14/14 migrations successful, 0 unresolved, 0 rolled back. | **PASS — Phase 5.27** |
 | Media-grant rate limiting | Phase 5.26 implemented 10 requests per authenticated user per 5 minutes using the existing HMAC-hashed PostgreSQL bucket; `429` + `Retry-After`, fail-closed `503` on limiter errors; CI run #44931742994 passed. | **PASS — Phase 5.26** |
 
 ## Enablement gates — all required before playback activation
 
-- Obtain owner approval for Cloudflare Stream adoption and any usage-based charges; provision a narrowly scoped provider credential only after that approval.
+- Obtain explicit owner approval for Cloudflare Stream adoption, recurring storage capacity charges, metered delivery charges, and the fact that budget alerts do not cap Stream usage; use the Phase 5.29 intake record.
 - Use only a non-production test asset with documented rights to upload and stream. Confirm the asset is private (`requireSignedURLs=true`) and its licence/territory metadata is accurate.
 - The nullable asset-UID migration is already applied and verified on the isolated Preview/E2E database (Phase 5.27); no further migration run is required for this target.
 - Implement per-user (and, as appropriate, per-asset) rate limiting for media-grant requests; fail closed on rate-limit infrastructure errors and cover limit/exhaustion behavior in route tests.
@@ -93,3 +93,13 @@ Do not add Cloudflare credentials, enable either playback flag, upload media, ap
 - Current Cloudflare official docs state videos are public by ID by default unless `requireSignedURLs=true`; official pricing describes storage capacity in $5/month per 1,000-minute increments and $1 per 1,000 delivered minutes. See [Cloudflare secure playback](https://developers.cloudflare.com/stream/viewing-videos/securing-your-stream/) and [Cloudflare pricing](https://developers.cloudflare.com/stream/pricing/).
 - Detailed evidence and upload preconditions: [non-production-test-asset-rights-readiness.md](non-production-test-asset-rights-readiness.md).
 - **Phase 5.28 result: PASS for the audit only. Test-asset readiness remains BLOCKED / NOT READY.** No asset was supplied or uploaded; no provider account, paid resource, credentials, flags, database data, or Production resource was changed.
+
+## Phase 5.29 owner approval and rights-evidence intake (2026-11-21)
+
+- Prepared [Cloudflare Stream Owner Approval & Rights Evidence Intake](cloudflare-stream-owner-approval-intake.md). Generic start instruction is not recorded as payment/usage approval.
+- Current official pricing is US$5/month per 1,000 minutes of storage capacity and US$1 per 1,000 minutes delivered. Delivery counts segment requests, including preloading/buffering.
+- Cloudflare Budget Alerts are informational and do not pause, block or cap Stream usage. Cloudflare documents product spending limits for Workers/ Durable Objects, not Stream. The owner must explicitly acknowledge that the alert threshold is not a guaranteed maximum invoice.
+- Approval checkboxes and owner/date/window/budget-alert acknowledgement fields remain NOT RECORDED. No Cloudflare account, paid resource, payment method, credential or signing key was created.
+- Rights-evidence intake requires the actual signed agreement or written rights statement to be inspected out-of-band for upload, hosting, encoding, VOD streaming, platform/language scope, territories, term, and all embedded audio/visual/performance rights. The current admin API stores only a text reference; it does not inspect the underlying document.
+- **Phase 5.29 result:** intake prepared; owner approval **PENDING**; rights-cleared test asset **NOT PROVIDED**. No asset upload, environment change, database write or Production operation was performed.
+- Official sources: [Stream pricing](https://developers.cloudflare.com/stream/pricing/), [Budget alerts](https://developers.cloudflare.com/billing/manage/budget-alerts/), [Spend management](https://developers.cloudflare.com/billing/manage/spend-management/), [Secure Stream playback](https://developers.cloudflare.com/stream/viewing-videos/securing-your-stream/).
