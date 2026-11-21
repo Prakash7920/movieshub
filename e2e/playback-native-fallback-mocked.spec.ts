@@ -1,4 +1,5 @@
 import { createMockPlaybackGrant } from "./playback-grant-fixture";
+import { createMockPlaybackGrant } from "./playback-grant-fixture";
 import { expect, test } from "@playwright/test";
 
 type NativeMockState = {
@@ -21,16 +22,16 @@ test("native HLS fallback renews a grant and restores playback after loadedmetad
   const clockStart = new Date();
   const customerHost = "https://customer-mockcustomer.cloudflarestream.com";
   const grants = [
-    {
-      protocol: "hls",
-      manifestUrl: `${customerHost}/header.native-initial.signature/manifest/video.m3u8`,
-      expiresAt: new Date(clockStart.getTime() + 36_000).toISOString(),
-    },
-    {
-      protocol: "hls",
-      manifestUrl: `${customerHost}/header.native-refreshed.signature/manifest/video.m3u8`,
-      expiresAt: new Date(clockStart.getTime() + 5 * 60_000).toISOString(),
-    },
+    createMockPlaybackGrant(
+      customerHost,
+      new Date(clockStart.getTime() + 36_000),
+      "native-initial",
+    ),
+    createMockPlaybackGrant(
+      customerHost,
+      new Date(clockStart.getTime() + 5 * 60_000),
+      "native-refreshed",
+    ),
   ];
   let grantRequests = 0;
 
