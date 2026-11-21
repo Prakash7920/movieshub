@@ -7,6 +7,7 @@ import {
   verifySignedPlaybackGrant,
   type PlaybackAuthorizationInput,
   type PlaybackGrantClaims,
+  type PlaybackGrantVerification,
 } from "../../lib/media/playback-security";
 
 const SECRET = "unit-test-only-signing-secret-at-least-32-bytes";
@@ -293,5 +294,16 @@ test("requires premium catalogue entitlement only for premium titles", () => {
       authorizationInput({ movie: premiumMovie, hasPremiumCatalogEntitlement: true }),
     ),
     { allowed: true, reason: "AUTHORIZED" },
+  );
+});
+
+test("denies authorization when a caller forges an unverified claims object", () => {
+  const forgedGrant = {
+    valid: true,
+    grant: { claims: validClaims() },
+  } as unknown as PlaybackGrantVerification;
+  assert.deepEqual(
+    evaluatePlaybackAuthorization(authorizationInput({ grant: forgedGrant })),
+    { allowed: false, reason: "GRANT_INVALID" },
   );
 });
