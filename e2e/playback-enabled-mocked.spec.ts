@@ -91,7 +91,7 @@ test("renews a mocked HLS grant and restores playback position without contactin
           "#EXT-X-MEDIA-SEQUENCE:0",
           "#EXT-X-ENDLIST",
           "",
-        ].join("\\n"),
+        ].join("\n"),
       });
       return;
     }
@@ -101,9 +101,9 @@ test("renews a mocked HLS grant and restores playback position without contactin
 
   await page.goto("/watch/mocked-hls-refresh");
   await expect(page.locator("video[aria-label='Mocked Hls Refresh video player']")).toBeVisible();
-  await expect(page.getByText("Secure stream ready.", { exact: false })).toBeVisible();
   await expect.poll(() => grantRequests, { timeout: 10_000 }).toBe(1);
   await expect.poll(() => manifestUrls.length, { timeout: 10_000 }).toBe(1);
+  await expect(page.getByText("Secure stream ready.", { exact: false })).toBeVisible();
 
   await page.evaluate(() => {
     const state = window.__nexafilmMockPlayback;
