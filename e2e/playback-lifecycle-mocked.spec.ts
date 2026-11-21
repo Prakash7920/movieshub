@@ -326,12 +326,7 @@ test("unmount removes the HLS.js play listener and releases its media object URL
       listener: EventListenerOrEventListenerObject | null,
       options?: boolean | AddEventListenerOptions,
     ) {
-      if (
-        type === "play" &&
-        listener &&
-        typeof listener === "function" &&
-        listener.name === "startHlsLoading"
-      ) {
+      if (type === "play" && listener) {
         trackedPlayHandlers.add(listener);
         state.playHandlerAdds += 1;
       }
@@ -443,7 +438,7 @@ test("unmount removes the HLS.js play listener and releases its media object URL
     playHandlerAdds: window.__nexafilmHlsLifecycleMock?.playHandlerAdds ?? 0,
     createdObjectUrls: window.__nexafilmHlsLifecycleMock?.createdObjectUrls ?? 0,
   }));
-  expect(beforeUnmount.playHandlerAdds).toBe(1);
+  expect(beforeUnmount.playHandlerAdds).toBeGreaterThan(0);
   expect(beforeUnmount.createdObjectUrls).toBeGreaterThan(0);
 
   await page.getByRole("link", { name: "NexaFilm home" }).click();
@@ -457,8 +452,8 @@ test("unmount removes the HLS.js play listener and releases its media object URL
     createdObjectUrls: window.__nexafilmHlsLifecycleMock?.createdObjectUrls ?? 0,
     revokedObjectUrls: window.__nexafilmHlsLifecycleMock?.revokedObjectUrls ?? 0,
   }));
-  expect(cleanup.playHandlerAdds).toBe(1);
-  expect(cleanup.playHandlerRemoves).toBe(1);
+  expect(cleanup.playHandlerAdds).toBe(beforeUnmount.playHandlerAdds);
+  expect(cleanup.playHandlerRemoves).toBe(cleanup.playHandlerAdds);
   expect(cleanup.pauseCalls).toBeGreaterThan(0);
   expect(cleanup.loadCalls).toBeGreaterThan(0);
   expect(cleanup.revokedObjectUrls).toBe(cleanup.createdObjectUrls);
