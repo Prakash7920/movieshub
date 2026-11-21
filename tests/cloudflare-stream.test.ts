@@ -14,8 +14,23 @@ const config = {
 };
 
 const assetUid = "abcdef0123456789abcdef0123456789";
-const signedToken = "header.payload.signature";
 const fixedNow = new Date("2026-11-20T12:00:00.000Z");
+const fixedNowSeconds = Math.floor(fixedNow.getTime() / 1000);
+
+function base64UrlJson(value: Record<string, unknown>): string {
+  return btoa(JSON.stringify(value))
+    .replace(/=/g, "")
+    .replace(/\\+/g, "-")
+    .replace(/\\//g, "_");
+}
+
+function signedTokenForExpiry(expirySeconds: number): string {
+  const header = base64UrlJson({ alg: "RS256", kid: "unit-test-key" });
+  const payload = base64UrlJson({ exp: String(expirySeconds) });
+  return `${header}.${payload}.mock-signature`;
+}
+
+const signedToken = signedTokenForExpiry(fixedNowSeconds + 300);
 
 function response(
   payload: unknown,
@@ -56,8 +71,13 @@ function successfulFetcher(options: {
     }
 
     options.onTokenRequest?.(url, init);
+    const requestBody = JSON.parse(String(init.body)) as { exp?: unknown };
+    const defaultToken =
+      typeof requestBody.exp === "number"
+        ? signedTokenForExpiry(requestBody.exp)
+        : signedToken;
     return response(
-      options.tokenPayload ?? { success: true, result: { token: signedToken } },
+      options.tokenPayload ?? { success: true, result: { token: defaultToken } },
       options.tokenHttp,
     );
   };
@@ -110,6 +130,25 @@ test("verifies private ready asset metadata before issuing a short-lived country
     expiresAt: "2026-11-20T12:05:00.000Z",
   });
   assert.equal(grant.manifestUrl.includes(assetUid), false);
+});
+
+test("rejects a provider JWT whose exp claim differs from the requested expiry", async () => {
+  await assert.rejects(
+    () =>
+      createCloudflareStreamPlaybackGrant(
+        { assetUid, viewerCountry: "IN", ttlSeconds: 300, now: fixedNow },
+        config,
+        successfulFetcher({
+          tokenPayload: {
+            success: true,
+            result: { token: signedTokenForExpiry(fixedNowSeconds + 301) },
+          },
+        }),
+      ),
+    (error: unknown) =>
+      error instanceof CloudflareStreamDeliveryError &&
+      error.code === "INVALID_PROVIDER_RESPONSE",
+  );
 });
 
 test("accepts a custom short lifetime within the configured bounds", async () => {
