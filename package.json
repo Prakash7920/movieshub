@@ -15,7 +15,8 @@
     "prisma:seed-catalogue": "tsx prisma/seed-catalogue.ts",
     "test": "tsx --test tests/security-primitives.test.ts tests/media-access-policy.test.ts tests/media-playback-service.test.ts tests/video-player-contract.test.ts tests/cloudflare-stream.test.ts tests/playback-grant.test.ts",
     "test:integration": "tsx --test tests/*.integration.test.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:playback": "playwright test --config=playwright.playback.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.4.2",
