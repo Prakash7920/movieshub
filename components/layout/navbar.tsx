@@ -22,12 +22,14 @@ export function Navbar() {
   const pathname = usePathname();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
 
     getSession().then((session) => {
-      if (active) setIsLoggedIn(Boolean(session?.user));
+      const sessionUser = session?.user as unknown as { id?: string } | undefined;
+      if (active) setIsLoggedIn(Boolean(sessionUser?.id));
     }).catch(() => {
       if (active) setIsLoggedIn(false);
     });
@@ -39,7 +41,21 @@ export function Navbar() {
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
-    await signOut({ callbackUrl: "/" });
+    setLogoutError(null);
+    try {
+      const response = await fetch("/api/auth/revoke-session", { method: "POST", cache: "no-store" });
+      if (!response.ok && response.status !== 401) {
+        throw new Error("Secure logout could not be completed.");
+      }
+
+      // Do not let NextAuth resolve "/" against a stale canonical NEXTAUTH_URL.
+      // Clear the session without redirecting, then navigate on this exact host.
+      await signOut({ redirect: false });
+      window.location.assign("/");
+    } catch {
+      setIsSigningOut(false);
+      setLogoutError("Secure logout could not be completed. Please try again.");
+    }
   };
 
   return (
@@ -63,20 +79,20 @@ export function Navbar() {
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-3">
           <Link
             href="/admin"
             aria-label="Admin"
             title="Admin"
-            className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-100 transition hover:bg-red-500/20 md:hidden"
+            className="inline-flex shrink-0 items-center justify-center rounded-full border border-red-500/30 bg-red-500/10 p-2 text-sm font-medium text-red-100 transition hover:bg-red-500/20 md:hidden max-[380px]:hidden"
           >
             <ShieldCheck className="h-4 w-4" />
-            <span>Admin</span>
           </Link>
           <LanguageSwitcher />
           {isLoggedIn ? (
             <button
               type="button"
+              aria-label={isSigningOut ? "Logging out" : "Logout"}
               onClick={handleSignOut}
               disabled={isSigningOut}
               className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 sm:px-4 py-2 text-sm font-medium text-white transition hover:border-red-500/50 hover:text-red-200 disabled:opacity-60"
@@ -85,10 +101,15 @@ export function Navbar() {
               <span className="hidden sm:inline">{isSigningOut ? "Logging out..." : "Logout"}</span>
             </button>
           ) : (
-            <Link href="/auth/login" className="rounded-full border border-white/10 bg-white/5 px-3 sm:px-4 py-2 text-sm font-medium text-white transition hover:border-red-500/50 hover:text-red-200">{t.login}</Link>
+            <Link href="/auth/login" className="whitespace-nowrap rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white transition hover:border-red-500/50 hover:text-red-200 sm:px-4 sm:text-sm">{t.login}</Link>
           )}
         </div>
       </div>
+      {logoutError && (
+        <div className="page-shell pb-2">
+          <p role="alert" className="text-xs text-red-300">{logoutError}</p>
+        </div>
+      )}
     </header>
   );
 }

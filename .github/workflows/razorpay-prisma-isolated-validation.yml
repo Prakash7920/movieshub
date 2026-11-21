@@ -1,0 +1,60 @@
+name: Razorpay Prisma Isolated Validation
+
+on:
+  push:
+    branches:
+      - phase-5/consolidated-security-ops
+    paths:
+      - '.github/workflows/razorpay-prisma-isolated-validation.yml'
+      - 'prisma/migrations/**'
+      - 'prisma/schema.prisma'
+      - 'package.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: razorpay-prisma-isolated-validation
+  cancel-in-progress: false
+
+jobs:
+  migrate-clean-isolated-database:
+    if: github.ref == 'refs/heads/phase-5/consolidated-security-ops'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: ${{ secrets.NEON_P3009_TEST_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.NEON_P3009_TEST_DIRECT_URL }}
+    steps:
+      - name: Checkout recovery branch
+        uses: actions/checkout@v4
+        with:
+          ref: phase-5/consolidated-security-ops
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install --no-package-lock
+
+      - name: Validate isolated database secrets exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${DATABASE_URL}" ] || [ -z "${DIRECT_URL}" ]; then
+            echo "::error::Isolated Neon test database secrets are missing."
+            exit 1
+          fi
+          echo "Both isolated Neon test database secrets are configured; values are not printed."
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Apply migrations using Prisma CLI on isolated test database
+        run: npx prisma migrate deploy
+
+      - name: Verify all migrations are applied
+        run: npx prisma migrate status

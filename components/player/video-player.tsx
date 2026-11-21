@@ -1,93 +1,337 @@
 "use client";
 
-import { useState } from "react";
-import type { ReactNode } from "react";
-import { Play, Pause, Volume2, VolumeX, Maximize, Captions, Gauge, SkipForward } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { parsePlaybackGrant, type PlaybackGrant } from "@/lib/media/playback-grant";
 
-type VideoPlayerProps = {
+export type VideoPlayerProps = {
   title: string;
-  src: string;
-  poster?: string;
-  premiumOnly?: boolean;
-  isPremiumUser?: boolean;
+  slug: string;
+  playbackEnabled: boolean;
 };
+
+type PlayerState = "disabled" | "loading" | "ready" | "error";
+
+const HLS_MIME_TYPE = "application/vnd.apple.mpegurl";
+const GRANT_REFRESH_EARLY_MS = 30_000;
+
+function PlaybackDisabled({ title }: { title: string }) {
+  return (
+    <section
+      aria-label={`${title} playback`}
+      className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-black"
+    >
+      <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 bg-[#080808] px-6 py-12 text-center md:min-h-[480px]">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-white/5">
+          <span aria-hidden="true" className="text-2xl text-gray-400">▶</span>
+        </div>
+        <div className="max-w-lg">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+            Playback disabled
+          </p>
+          <h2 className="mt-3 text-2xl font-bold text-white">{title}</h2>
+          <p className="mt-3 text-sm leading-6 text-gray-400">
+            Secure streaming is not enabled. Playback requires separate approval and a valid server-authorized media grant.
+          </p>
+        </div>
+        <span className="rounded-full border border-white/10 px-4 py-2 text-xs text-gray-400">
+          Secure delivery pending
+        </span>
+      </div>
+    </section>
+  );
+}
 
 export function VideoPlayer({
   title,
-  src,
-  poster,
-  premiumOnly = false,
-  isPremiumUser = false,
+  slug,
+  playbackEnabled,
 }: VideoPlayerProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [muted, setMuted] = useState(false);
-  const [speed, setSpeed] = useState(1);
-  const [showCaption, setShowCaption] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [playerState, setPlayerState] = useState<PlayerState>(
+    playbackEnabled ? "loading" : "disabled",
+  );
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const retryLockedRef = useRef(false);
 
-  const overlayMessage = premiumOnly && !isPremiumUser ? "Premium access required. Upgrade to continue watching without ads." : "";
+  useEffect(() => {
+    if (!playbackEnabled) {
+      setPlayerState("disabled");
+      return;
+    }
+
+    // Capture the committed media element before asynchronous work. React may
+    // clear the ref before passive-effect cleanup runs during unmount.
+    const activeVideo = videoRef.current;
+    if (!activeVideo) return;
+
+    retryLockedRef.current = false;
+
+    const controller = new AbortController();
+    let disposed = false;
+    let hlsInstance: import("hls.js").default | null = null;
+    let HlsConstructor: typeof import("hls.js").default | null = null;
+    let nativeHls = false;
+    let refreshTimer: number | null = null;
+
+    function startHlsLoading() {
+      hlsInstance?.startLoad();
+    }
+
+    function failPlaybackClosed() {
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+        refreshTimer = null;
+      }
+
+      const video = activeVideo;
+      const hasConfiguredPlayback = Boolean(
+        hlsInstance || nativeHls || video?.hasAttribute("src"),
+      );
+
+      hlsInstance?.destroy();
+      hlsInstance = null;
+      HlsConstructor = null;
+      nativeHls = false;
+
+      if (video && hasConfiguredPlayback) {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      }
+
+      setPlayerState("error");
+    }
+
+    function handleMediaError() {
+      if (!disposed) {
+        failPlaybackClosed();
+      }
+    }
+
+    activeVideo.addEventListener("error", handleMediaError);
+
+    async function requestPlaybackGrant(): Promise<PlaybackGrant> {
+      const response = await fetch(
+        `/api/media/${encodeURIComponent(slug)}`,
+        {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+          signal: controller.signal,
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Secure playback is currently unavailable.");
+      }
+
+      const grant = parsePlaybackGrant(await response.json());
+      if (!grant) {
+        throw new Error("The playback service returned an invalid or expired grant.");
+      }
+
+      return grant;
+    }
+
+    function scheduleGrantRefresh(grant: PlaybackGrant) {
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+      }
+
+      const expiresAt = Date.parse(grant.expiresAt);
+      const refreshIn = Math.max(
+        1_000,
+        expiresAt - Date.now() - GRANT_REFRESH_EARLY_MS,
+      );
+
+      refreshTimer = window.setTimeout(() => {
+        void refreshPlaybackGrant();
+      }, refreshIn);
+    }
+
+    async function refreshPlaybackGrant() {
+      try {
+        const nextGrant = await requestPlaybackGrant();
+        if (disposed) return;
+
+        const video = activeVideo;
+        if (!video) return;
+
+        const previousTime = video.currentTime;
+        const shouldResume = !video.paused;
+
+        if (nativeHls) {
+          const restorePlayback = () => {
+            if (disposed) return;
+            if (Number.isFinite(previousTime) && previousTime > 0) {
+              video.currentTime = previousTime;
+            }
+            if (shouldResume) {
+              void video.play().catch(() => undefined);
+            }
+          };
+
+          video.addEventListener("loadedmetadata", restorePlayback, { once: true });
+          video.src = nextGrant.manifestUrl;
+          video.load();
+        } else if (hlsInstance && HlsConstructor) {
+          hlsInstance.once(HlsConstructor.Events.MANIFEST_PARSED, () => {
+            if (disposed) return;
+            if (Number.isFinite(previousTime) && previousTime > 0) {
+              video.currentTime = previousTime;
+            }
+            if (shouldResume) {
+              void video.play().catch(() => undefined);
+            }
+          });
+          hlsInstance.loadSource(nextGrant.manifestUrl);
+        } else {
+          return;
+        }
+
+        scheduleGrantRefresh(nextGrant);
+      } catch {
+        if (controller.signal.aborted || disposed) return;
+        failPlaybackClosed();
+      }
+    }
+
+    async function preparePlayback() {
+      const video = activeVideo;
+      if (!video) return;
+
+      setPlayerState("loading");
+
+      try {
+        const grant = await requestPlaybackGrant();
+        if (disposed) return;
+
+        // Prefer native HLS where Managed Media Source is available.
+        if (
+          video.canPlayType(HLS_MIME_TYPE) &&
+          "ManagedMediaSource" in window
+        ) {
+          nativeHls = true;
+          video.src = grant.manifestUrl;
+          scheduleGrantRefresh(grant);
+          setPlayerState("ready");
+          return;
+        }
+
+        const Hls = (await import("hls.js")).default;
+        if (disposed) return;
+
+        if (Hls.isSupported()) {
+          HlsConstructor = Hls;
+          hlsInstance = new Hls({
+            enableWorker: true,
+            lowLatencyMode: false,
+            backBufferLength: 60,
+            autoStartLoad: false,
+          });
+
+          video.addEventListener("play", startHlsLoading);
+
+          hlsInstance.on(Hls.Events.ERROR, (_event, data) => {
+            if (data.fatal && !disposed) {
+              if (refreshTimer !== null) {
+                window.clearTimeout(refreshTimer);
+                refreshTimer = null;
+              }
+              failPlaybackClosed();
+            }
+          });
+
+          hlsInstance.loadSource(grant.manifestUrl);
+          hlsInstance.attachMedia(video);
+          scheduleGrantRefresh(grant);
+          setPlayerState("ready");
+          return;
+        }
+
+        // Last-resort native fallback for browsers exposing HLS but not MSE.
+        if (video.canPlayType(HLS_MIME_TYPE)) {
+          nativeHls = true;
+          video.src = grant.manifestUrl;
+          scheduleGrantRefresh(grant);
+          setPlayerState("ready");
+          return;
+        }
+
+        throw new Error("This browser does not support secure HLS playback.");
+      } catch {
+        if (controller.signal.aborted || disposed) return;
+        failPlaybackClosed();
+      }
+    }
+
+    void preparePlayback();
+
+    return () => {
+      disposed = true;
+      controller.abort();
+
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+      }
+      hlsInstance?.destroy();
+      hlsInstance = null;
+
+      const video = activeVideo;
+      if (video) {
+        video.removeEventListener("play", startHlsLoading);
+        video.removeEventListener("error", handleMediaError);
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      }
+    };
+  }, [playbackEnabled, slug, retryAttempt]);
+
+  function handleRetry() {
+    if (playerState !== "error" || retryLockedRef.current) return;
+
+    retryLockedRef.current = true;
+    setPlayerState("loading");
+    setRetryAttempt((attempt) => attempt + 1);
+  }
+
+  if (!playbackEnabled) {
+    return <PlaybackDisabled title={title} />;
+  }
 
   return (
-    <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-black">
-      <div className="relative">
-        <video
-          className="h-[420px] w-full object-cover md:h-[520px]"
-          controls
-          controlsList="nodownload"
-          poster={poster}
-          preload="metadata"
-          aria-label={`${title} video player`}
-        >
-          <source src={src} type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-
-        {overlayMessage && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 p-6 text-center backdrop-blur-sm">
-            <div className="max-w-md rounded-2xl border border-yellow-500/40 bg-black/50 p-6">
-              <p className="text-xs uppercase tracking-[0.22em] text-yellow-300">Premium required</p>
-              <h3 className="mt-3 text-2xl font-bold text-white">{title}</h3>
-              <p className="mt-2 text-sm text-gray-300">{overlayMessage}</p>
-              <div className="mt-5 flex justify-center gap-3">
-                <button className="rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white">Upgrade</button>
-                <button className="rounded-full border border-white/10 px-4 py-2 text-sm text-white">Preview</button>
-              </div>
-              <p className="mt-4 text-xs text-gray-400">Production playback should use signed temporary URLs.</p>
-            </div>
+    <section
+      aria-label={`${title} playback`}
+      className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-black"
+    >
+      <video
+        ref={videoRef}
+        controls
+        playsInline
+        preload="metadata"
+        controlsList="nodownload noremoteplayback"
+        disablePictureInPicture
+        className="aspect-video w-full bg-black"
+        aria-label={`${title} video player`}
+      />
+      <div className="border-t border-white/10 px-4 py-3 text-sm text-gray-400" aria-live="polite">
+        {playerState === "loading" && "Preparing secure stream…"}
+        {playerState === "ready" && "Secure stream ready. Press play when you are ready."}
+        {playerState === "error" && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p>Secure playback could not be started. Please try again later.</p>
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="rounded-full border border-white/20 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              Retry playback
+            </button>
           </div>
         )}
       </div>
-
-      <div className="flex flex-wrap items-center gap-3 border-t border-white/10 bg-[#0c0c0c] px-4 py-3 text-sm text-gray-200">
-        <button aria-label="Play" className="rounded-full bg-white/5 p-2 hover:bg-white/10" type="button" onClick={() => setIsPlaying((value) => !value)}>
-          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-        </button>
-        <button aria-label="Skip forward" className="rounded-full bg-white/5 p-2 hover:bg-white/10" type="button">
-          <SkipForward className="h-4 w-4" />
-        </button>
-        <button aria-label="Mute" className="rounded-full bg-white/5 p-2 hover:bg-white/10" type="button" onClick={() => setMuted((value) => !value)}>
-          {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-        </button>
-        <button aria-label="Toggle captions" className="rounded-full bg-white/5 p-2 hover:bg-white/10" type="button" onClick={() => setShowCaption((value) => !value)}>
-          <Captions className="h-4 w-4" />
-        </button>
-        <select
-          aria-label="Playback speed"
-          className="rounded-full border border-white/10 bg-[#111111] px-3 py-1.5 text-xs text-white"
-          value={speed}
-          onChange={(event) => setSpeed(Number(event.target.value))}
-        >
-          {[0.75, 1, 1.25, 1.5, 2].map((option) => (
-            <option key={option} value={option}>{option}x</option>
-          ))}
-        </select>
-        <div className="ml-auto inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#111111] px-3 py-1.5 text-xs text-gray-300">
-          <Gauge className="h-3.5 w-3.5 text-red-400" />
-          {showCaption ? "CC On" : "CC Off"}
-        </div>
-        <button aria-label="Fullscreen" className="rounded-full bg-white/5 p-2 hover:bg-white/10" type="button">
-          <Maximize className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
+    </section>
   );
 }

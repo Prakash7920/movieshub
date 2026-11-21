@@ -1,5 +1,5 @@
 {
-  "name": "movieshub",
+  "name": "nexafilm",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,7 +12,11 @@
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed-catalogue": "tsx prisma/seed-catalogue.ts"
+    "prisma:seed-catalogue": "tsx prisma/seed-catalogue.ts",
+    "test": "tsx --test tests/security-primitives.test.ts tests/media-access-policy.test.ts tests/media-playback-service.test.ts tests/video-player-contract.test.ts tests/cloudflare-stream.test.ts tests/playback-grant.test.ts",
+    "test:integration": "tsx --test tests/*.integration.test.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:playback": "playwright test --config=playwright.playback.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.4.2",
@@ -29,7 +33,8 @@
     "recharts": "^2.15.0",
     "tailwind-merge": "^2.5.0",
     "zod": "^3.24.0",
-    "bcryptjs": "^2.4.3"
+    "bcryptjs": "^2.4.3",
+    "hls.js": "1.7.4"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
@@ -43,6 +48,7 @@
     "tailwindcss": "^3.4.1",
     "tsx": "^4.19.1",
     "typescript": "^5.7.2",
-    "@types/bcryptjs": "^2.4.6"
+    "@types/bcryptjs": "^2.4.6",
+    "@playwright/test": "^1.55.0"
   }
 }

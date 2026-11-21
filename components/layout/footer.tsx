@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { Globe2 } from "lucide-react";
 import { languageLabels } from "@/lib/translations";
 import { useLanguage } from "@/components/providers/language-provider";

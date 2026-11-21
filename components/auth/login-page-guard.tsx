@@ -19,7 +19,8 @@ export function LoginPageGuard() {
     const redirectIfSignedIn = async () => {
       try {
         const session = await getSession();
-        if (active && session?.user) router.replace(destination);
+        const sessionUser = session?.user as { id?: string } | undefined;
+        if (active && typeof sessionUser?.id === "string" && sessionUser.id.length > 0) router.replace(destination);
       } catch {
         // Keep the login page available if the session check cannot complete.
       }
