@@ -3,7 +3,7 @@
 - **Checkpoint:** Phase 5.29
 - **Prepared:** 2026-11-21
 - **Branch:** `phase-5/consolidated-security-ops`
-- **State:** **PENDING — no cost approval or test asset rights evidence recorded**
+- **State:** **PARTIAL APPROVAL RECORDED — usage-based cost model accepted; account/resource setup and rights evidence remain pending**
 - **Purpose:** Capture the explicit owner decision and the minimum legal/operational evidence required before a non-production Cloudflare Stream proof of concept.
 
 ## 1. Current decision state
@@ -12,10 +12,10 @@ The user's instruction to start Phase 5.29 authorizes preparation of this intake
 
 | Decision | State |
 |---|---|
-| Cloudflare Stream adoption | **PENDING OWNER APPROVAL** |
-| Acceptance of recurring storage capacity charges | **PENDING** |
-| Acceptance of metered delivery charges | **PENDING** |
-| Acceptance that Cloudflare budget alerts are not a hard spend cap | **PENDING** |
+| Usage-based cost model for the planned non-production POC (storage + delivery) | **APPROVED — 2026-11-22** |
+| Acknowledgement that budget alerts are not a hard spend cap | **ACKNOWLEDGED — 2026-11-22** |
+| Cloudflare account / Stream resource creation and payment-method setup | **NOT YET AUTHORIZED** |
+| Agreed test window and budget-alert threshold | **NOT SPECIFIED** |
 | Rights-cleared non-production test asset identified | **NOT PROVIDED** |
 | Actual signed agreement / rights statement inspected | **NOT PROVIDED** |
 | Admin licence approval recorded | **NOT PRESENT IN ISOLATED TEST DATABASE** |
@@ -53,30 +53,32 @@ A controlled POC should still limit exposure operationally: one rights-cleared a
 Source: https://developers.cloudflare.com/billing/manage/budget-alerts/
 Source: https://developers.cloudflare.com/billing/manage/spend-management/
 
-## 4. Exact owner decision required
+## 4. Owner decision recorded — 2026-11-22
 
-The owner must explicitly complete and approve all items below before any Cloudflare account, paid subscription/capacity, credential, signing key, or media upload is created.
+The owner replied **“Approved buddy start”** to the explicit request for approval of Cloudflare Stream's usage-based charges, with the stated understanding that Cloudflare Budget Alerts are not a hard spending cap.
 
-- [ ] I approve Cloudflare Stream for a **non-production NexaFilm proof of concept only**.
-- [ ] I understand the published storage rate of US$5/month per 1,000 minutes of storage capacity and the metered delivery rate of US$1 per 1,000 minutes delivered.
-- [ ] I understand that delivery charges vary with actual segment requests, including preloading/buffering, and that taxes/currency conversion may apply.
-- [ ] I understand that Cloudflare budget alerts are informational only and **are not a hard spend limit**; I accept that actual usage charges may exceed an alert threshold.
-- [ ] I approve the agreed test window and a maximum intended test scope of one non-production asset, restricted named testers, no public access, downloads disabled, and manual shutoff at test completion.
-- [ ] I separately approve the creation/use of a Cloudflare account or Stream resource, if not already present, and any required payment method or subscription/capacity purchase.
+**Recorded as approved:**
+- Usage-based storage capacity charges at the published rate of US$5/month per 1,000 minutes of capacity.
+- Metered video delivery at the published rate of US$1 per 1,000 minutes delivered.
+- The no-hard-cap limitation: actual charges can exceed any alert threshold.
+- Cost-model approval is limited to the planned **non-production NexaFilm POC** discussed in this checkpoint.
 
-**Owner decision:** `NOT RECORDED`
+**Not inferred from that response and still pending:**
+- Creation/use of a Cloudflare account or Stream resource and any payment-method setup.
+- A specific test window and budget-alert threshold.
+- Rights clearance, identification of a test asset, and upload authorization.
 
-**Approved by (owner identity):** `NOT RECORDED`
+This approval is not a guaranteed invoice maximum and does not authorize Production use, public playback, or upload of content without documented rights. No provider account, paid resource, payment method, credential, or asset has been created or changed.
 
-**Approval date/time (UTC):** `NOT RECORDED`
+**Owner decision:** `USAGE-BASED COST MODEL APPROVED; OPERATIONAL SETUP PENDING`
 
-**Agreed test window:** `NOT RECORDED`
+**Approval date:** `2026-11-22`
 
-**Agreed budget-alert threshold (USD):** `NOT RECORDED — informational only, not a cap`
+**Agreed test window:** `NOT SPECIFIED`
 
-**Acknowledgement reference:** `NOT RECORDED`
+**Agreed budget-alert threshold (USD):** `NOT SPECIFIED — informational only, not a cap`
 
-Do not treat a generic “start” message or this prepared template as the above approval. The owner should send an explicit approval statement after reviewing the recurring and usage-based costs and the no-hard-cap limitation.
+**Acknowledgement reference:** `Direct owner approval in project conversation, 2026-11-22`
 
 ## 5. Rights-evidence intake required for one test asset
 
@@ -125,6 +127,6 @@ Only after owner approval and actual rights evidence are accepted:
 
 ## 8. Current decision
 
-**Phase 5.29 intake prepared; owner approval is PENDING and rights evidence is NOT PROVIDED. No account, subscription, payment method, API token, signing key, media asset, database record, or environment variable was created or changed. No Production resource was accessed or modified.**
+**Phase 5.29 update (2026-11-22): owner approval of the usage-based storage/delivery cost model and acknowledgement of the no-hard-cap limitation are RECORDED. Operational account/resource/payment-method setup and the test window/alert threshold remain pending; rights evidence and a test asset are NOT PROVIDED.** No account, subscription, payment method, API token, signing key, media asset, database record, or environment variable was created or changed. No Production resource was accessed or modified.
 
-The next action is for the owner to explicitly approve or decline the Cloudflare Stream cost model and provide a rights-cleared one-asset candidate. Until then, keep provider flags off and playback fail-closed.
+The next gate is a single rights-cleared non-production asset with the underlying agreement or written rights grant inspected by the responsible reviewer. Keep provider flags off and playback fail-closed until that independent gate and the remaining operational approvals are satisfied.
