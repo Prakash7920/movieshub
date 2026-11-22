@@ -1,6 +1,7 @@
 # Synthetic Asset Rights Clearance Decision — NexaFilm
 
 - **Checkpoint:** Phase 5.33 — Synthetic Asset Rights Approval & Non-Production Licence Registration
+- **Terms clarification follow-up:** Phase 5.34 — Written provider-rights clarification request prepared
 - **Assessment date:** 2026-11-22
 - **Branch:** `phase-5/consolidated-security-ops`
 - **Result:** **BLOCKED — RIGHTS NOT CLEARED; NO LICENCE REGISTERED**
@@ -20,15 +21,19 @@ A visual spot-check of extracted frames at 1, 5 and 9 seconds showed the same ab
 
 The official vidIQ Terms of Service page reviewed for this checkpoint states an effective date of **August 2, 2026**:
 
-- Section 2 grants a limited, revocable, non-exclusive and non-transferable right to use the Services for personal and educational purposes. It says vidIQ and its licensors retain ownership of the Services and their Materials.
-- Section 14 defines generated media, including video and audio, as “Content Artifacts”. It says AI outputs may reflect, incorporate or resemble pre-existing protected works, voices, likenesses or other protected material; the user is responsible for review before use, publication or distribution; and vidIQ makes no representation or warranty that an artifact is free from third-party-rights claims.
-- Section 14 further states that, except for rights expressly granted in the Terms, vidIQ grants no licence or other right in a Content Artifact and cannot be relied on to clear, license or obtain rights in the artifact on the user's behalf.
+- **Section 2** grants a limited, revocable, non-exclusive and non-transferable right to review, interact with and in some instances print content from the Services for personal and educational purposes. It says vidIQ and its licensors remain owners of the Services.
+- **Section 5(t)** prohibits use of the Services or their related content for any revenue-generating endeavour or commercial enterprise. Its application to a generated video file exported from the generator, as distinct from commercial use of the vidIQ service itself, needs written clarification from vidIQ before any NexaFilm use.
+- **Section 14** defines generated media, including video and audio, as “Content Artifacts”. It says AI outputs may reflect, incorporate or resemble pre-existing protected works, voices, likenesses or other protected material; the user is responsible for reviewing each artifact before use, publication or distribution; and vidIQ makes no representation or warranty that an artifact is free from third-party-rights claims.
+- **Section 14** further states that, except for rights expressly granted in the Terms, vidIQ grants no licence or other right in a Content Artifact and cannot be relied on to clear, license or obtain rights in the artifact on the user's behalf.
+- **Section 9** disclaims warranties including title and non-infringement.
 
-Official source: https://vidiq.com/terms/ (Terms of Service, effective August 2, 2026; reviewed 2026-11-22; Sections 2 and 14).
+Official source: https://vidiq.com/terms/ (Terms of Service, effective August 2, 2026; reviewed 2026-11-22; Sections 2, 5(t), 9 and 14).
 
-These terms do **not** provide sufficient affirmative evidence of the complete rights NexaFilm would need to upload, store, transcode, package, CDN-deliver and stream this generated artifact as part of an OTT/media service. They also do not establish who owns every protectable element in the generated output. The underlying model/provider-specific terms or contractual grants applicable to this generation were not supplied or independently verified for this assessment.
+The same terms page identifies `support@vidiq.com` as the contact for questions about the Terms (Section 18). A written clarification request has been prepared for that address. **It has not been sent, and no vidIQ response or licence has been received.**
 
-This is a rights-evidence decision, not a final legal opinion that the clip necessarily infringes or that every possible use is prohibited. The material point is that the intended NexaFilm streaming licence scope has not been established by the evidence available here.
+These published terms do **not** currently provide sufficient affirmative evidence of the complete rights NexaFilm would need to upload, store, transcode, package, CDN-deliver and stream this generated artifact as part of an OTT/media service. They also do not establish who owns every protectable element in the generated output. The underlying model/provider-specific terms or contractual grants applicable to this MiniMax H3 generation were not supplied or independently verified for this assessment.
+
+This is a rights-evidence decision, not a final legal opinion that the clip necessarily infringes or that every possible use is prohibited. The material point is that the intended NexaFilm streaming licence scope has not been established by the evidence available here, and Sections 2 and 5(t) require provider clarification for a commercial/OTT use case.
 
 ## 3. Existing NexaFilm licence workflow
 
@@ -64,7 +69,7 @@ No movie or licence fixture was created for this assessment. No database writes 
 
 The previously recorded approval accepts the proposed non-production Cloudflare Stream usage-based cost model and acknowledges that budget alerts are not a hard spend cap. It does **not** authorise Cloudflare account/resource creation, payment-method setup, credentials, media upload or playback activation.
 
-The separate test window and budget-alert threshold remain unspecified. No Cloudflare credentials are configured for this Preview branch, and playback flags remain off. These operational approvals cannot substitute for content rights.
+The separate test window and budget-alert threshold remain unspecified. No Cloudflare credentials are configured for this Preview branch, and playback flags remain off. These operational approvals cannot substitute for content rights or vidIQ's clarification of commercial output rights.
 
 ## 6. Gate decision
 
@@ -73,6 +78,8 @@ The separate test window and budget-alert threshold remain unspecified. No Cloud
 | Synthetic clip generated for this POC | Generator job and prompt record | **PASS** |
 | Local asset integrity | SHA-256, metadata and full decode in Phase 5.31 evidence | **PASS** |
 | Limited visual spot-check | Frames at 1s, 5s and 9s; no obvious third-party indicators seen | **PASS — LIMITED ONLY** |
+| Terms review | Sections 2, 5(t), 9 and 14 reviewed | **PASS — TERMS REVIEW ONLY** |
+| vidIQ written clarification | Request prepared but not yet sent; no reply received | **PENDING** |
 | Rights holder / chain of title | Not established by current terms or supplied documents | **BLOCKED** |
 | Affirmative licence for OTT upload, hosting, processing and streaming | Not established by available vidIQ terms; underlying provider-specific grant not verified | **BLOCKED** |
 | Written rights statement / signed instrument | Not supplied or reviewed | **BLOCKED** |
@@ -88,10 +95,12 @@ The separate test window and budget-alert threshold remain unspecified. No Cloud
 
 Before any pending or active licence registration for this asset:
 
-1. Obtain a written rights clarification or grant that covers the exact vidIQ-generated artifact and underlying model/provider, and explicitly addresses NexaFilm's intended non-production OTT use: upload, hosting, transcoding/encoding, packaging, CDN delivery and playback. A generic statement that the clip was generated from an original prompt is not enough.
-2. Have the responsible owner/legal reviewer confirm the relevant rights holder and chain of title, audio/visual components, permitted territories, platform/language scope, term, restrictions, and whether the grant can be used by NexaFilm.
-3. Store the actual signed instrument or written grant in an access-controlled legal/compliance location. Do not commit confidential contracts or private identity information to GitHub.
-4. Only after review, have the authorised administrator create a `PENDING` record with accurate owner, dates, territories and a controlled evidence reference. The administrator must personally inspect the underlying document before using the approval action. Keep downloads disabled.
-5. Continue to keep Cloudflare setup and playback flags off until the separately required provider/resource approvals, rights clearance, and signed-playback checks are complete.
+1. Send the prepared written clarification request to vidIQ Support at `support@vidiq.com`. Ask specifically whether Sections 2 and 5(t) permit use of a video generated through vidIQ's Video Generator (including via its MCP interface) as a non-public technical test asset and, separately, whether use is permitted in a commercial OTT/VOD service. Request an affirmative grant or an explicit statement of what permission/contract is required.
+2. Obtain confirmation of the rights, if any, granted in the Content Artifact; whether NexaFilm may upload, store, copy, transcode/encode, package, securely deliver, and stream it to authorised testers/end users; and whether a separate commercial/enterprise licence is required.
+3. Obtain the applicable MiniMax H3 / underlying model provider terms and determine whether the model/provider permits the intended downstream OTT use, including audio elements.
+4. Have the responsible owner/legal reviewer confirm the relevant rights holder and chain of title, audio/visual components, permitted territories, platform/language scope, term, restrictions, and whether the grant can be used by NexaFilm.
+5. Store the actual signed instrument or written grant in an access-controlled legal/compliance location. Do not commit confidential contracts or private identity information to GitHub.
+6. Only after review, have the authorised administrator create a `PENDING` record with accurate owner, dates, territories and a controlled evidence reference. The administrator must personally inspect the underlying document before using the approval action. Keep downloads disabled.
+7. Continue to keep Cloudflare setup and playback flags off until the separately required provider/resource approvals, rights clearance, and signed-playback checks are complete.
 
 Alternative: replace this test asset with a source whose applicable output licence and full downstream OTT rights are clearly documented, then repeat the same human review. Do not infer rights merely from a model name, generation prompt, credit purchase, possession of the MP4, or successful import.
