@@ -51,7 +51,7 @@ This checkpoint supersedes the *current-state conclusions* in the earlier Phase 
 | Browser grant/player lifecycle | Current-head GitHub Actions run [#547](https://github.com/Prakash7920/movieshub/actions/runs/44885183365) completed successfully, including browser E2E. These playback-enabled scenarios use synthetic JWT-shaped fixtures and mocked provider/CDN requests. | **PASS — mocked E2E** |
 | Preview deployment | Vercel Preview deployment `dpl_5BBgnudJuz6RnjEA48Wkqjkot28R` was READY for source snapshot `ba43e34`. | **PASS — deployment state** |
 | Preview provider configuration | Read-only branch-scoped Vercel environment metadata listed no `CLOUDFLARE_*` variables for this Preview branch. Values were not decrypted or disclosed. | **PASS — provider remains unconfigured** |
-| Cloudflare Stream owner approval | Phase 5.29 intake prepared; no explicit owner acceptance of storage/delivery charges or the no-hard-cap limitation is recorded. Preview has no `CLOUDFLARE_*` configuration. | **PENDING — OWNER DECISION REQUIRED** |
+| Cloudflare Stream cost-model approval | Owner explicitly approved the planned non-production POC's usage-based storage/delivery charges and acknowledged that budget alerts are not a hard cap (2026-11-22). Account/resource/payment-method setup and test window/alert threshold remain pending. Preview has no `CLOUDFLARE_*` configuration. | **PASS — COST APPROVAL ONLY; SETUP PENDING** |
 | Rights-evidence verification method | Admin approval requires a confirmation and signed-agreement reference, but the `License` schema stores no agreement attachment/hash; actual contract inspection must remain a human-controlled off-platform review. | **MANUAL CONTROL REQUIRED** |
 | Authenticated Preview grant issuance | No live authenticated request against a configured Cloudflare Stream asset was performed. | **NOT TESTED** |
 | Real Cloudflare signature/edge validation | No real token, HLS manifest, segment request, token-expiry-at-edge, country-denial, or public-ID-denial test has been run. | **BLOCKED** |
@@ -61,7 +61,7 @@ This checkpoint supersedes the *current-state conclusions* in the earlier Phase 
 
 ## Enablement gates — all required before playback activation
 
-- Obtain explicit owner approval for Cloudflare Stream adoption, recurring storage capacity charges, metered delivery charges, and the fact that budget alerts do not cap Stream usage; use the Phase 5.29 intake record.
+- Phase 5.29 cost-model approval is recorded (2026-11-22): usage-based storage/delivery charges accepted and no-hard-cap limitation acknowledged. Before setup, separately record authorization for account/Stream resource/payment-method operations and agree the test window and informational alert threshold in the Phase 5.29 intake.
 - Use only a non-production test asset with documented rights to upload and stream. Confirm the asset is private (`requireSignedURLs=true`) and its licence/territory metadata is accurate.
 - The nullable asset-UID migration is already applied and verified on the isolated Preview/E2E database (Phase 5.27); no further migration run is required for this target.
 - Implement per-user (and, as appropriate, per-asset) rate limiting for media-grant requests; fail closed on rate-limit infrastructure errors and cover limit/exhaustion behavior in route tests.
@@ -103,3 +103,10 @@ Do not add Cloudflare credentials, enable either playback flag, upload media, ap
 - Rights-evidence intake requires the actual signed agreement or written rights statement to be inspected out-of-band for upload, hosting, encoding, VOD streaming, platform/language scope, territories, term, and all embedded audio/visual/performance rights. The current admin API stores only a text reference; it does not inspect the underlying document.
 - **Phase 5.29 result:** intake prepared; owner approval **PENDING**; rights-cleared test asset **NOT PROVIDED**. No asset upload, environment change, database write or Production operation was performed.
 - Official sources: [Stream pricing](https://developers.cloudflare.com/stream/pricing/), [Budget alerts](https://developers.cloudflare.com/billing/manage/budget-alerts/), [Spend management](https://developers.cloudflare.com/billing/manage/spend-management/), [Secure Stream playback](https://developers.cloudflare.com/stream/viewing-videos/securing-your-stream/).
+### Phase 5.29 owner decision update (2026-11-22)
+
+- The owner explicitly approved the usage-based storage and delivery cost model for the planned non-production POC and acknowledged that Cloudflare Budget Alerts are informational, not a hard spend cap.
+- This records cost-model approval only. Cloudflare account/Stream resource creation, payment-method setup, test-window selection and alert-threshold selection remain pending; no provider account or paid resource was created.
+- The separate lawful-asset gate remains **BLOCKED**: no test asset or underlying signed agreement/rights statement has been supplied or inspected. The cost approval does not authorize upload or Production use.
+- Preview provider flags remain off; no `CLOUDFLARE_*` variables, secrets, database rows, media assets or Production resources were changed.
+- **Decision: PASS — owner cost-model approval recorded; provider setup and provider-backed playback remain BLOCKED pending operational authorization and rights evidence.**
