@@ -8,7 +8,9 @@
 - **Generation method:** Original Python/NumPy/Pillow procedural frame drawing; FFmpeg H.264 encoding
 - **Visual concept:** Abstract futuristic glass arches, softly glowing blue-white portal light, subtle drifting particles, volumetric atmospheric wash and a perspective floor, with a restrained forward camera move
 - **Source:** `scripts/generate_nexafilm_test_asset.py`
-- **Source SHA-256:** `7c635c4f6c70ecdb9095ecc2603b0d278a9d66c739b6a924be5f816b00bf3230`
+- **Generator source SHA-256:** `535912e23fb67bb5a7141ab021cfad0b1534e1690516d726dba0d69904e3ad79`
+- **Committed generator Git blob SHA-1:** `cb3f2f19eef3a9cb61ca4190b019c41ab1b3620a`
+- **Generator source commit:** `08671096875bdbe7c6e2c73066345c0ba1071fa0`
 - **MP4 SHA-256:** `f28ec6979199bed58194759b5664f4ec13285980e456b910b82e545fda3f7c13`
 
 ## 1. Creation and provenance
@@ -35,6 +37,8 @@ The final MP4 was inspected with `ffprobe`:
 | File size | 1,487,027 bytes |
 | Overall bitrate | 1,189,621 bits/second |
 | SHA-256 | `f28ec6979199bed58194759b5664f4ec13285980e456b910b82e545fda3f7c13` |
+
+The Phase 5.36 first draft contained an incorrect generator source SHA-256. This was corrected during the Phase 5.37 review. The source used for local generation is 7,885 bytes; its measured SHA-256 is shown above. The committed generator was aligned to the exact same source content, verified by matching the locally computed Git blob object ID `cb3f2f19eef3a9cb61ca4190b019c41ab1b3620a` to GitHub's returned blob SHA. The MP4 hash and content were not changed by this source-record correction.
 
 ## 3. Integrity and reproducibility
 
