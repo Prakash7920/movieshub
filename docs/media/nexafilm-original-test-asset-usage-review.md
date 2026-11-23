@@ -7,7 +7,7 @@
 - **MP4 SHA-256:** `f28ec6979199bed58194759b5664f4ec13285980e456b910b82e545fda3f7c13`
 - **Generator source SHA-256:** `535912e23fb67bb5a7141ab021cfad0b1534e1690516d726dba0d69904e3ad79`
 - **Committed source Git blob SHA-1:** `cb3f2f19eef3a9cb61ca4190b019c41ab1b3620a`
-- **Decision:** **TECHNICAL PROVENANCE PASS; RESTRICTED INTERNAL-USE OWNER APPROVAL PENDING**
+- **Decision:** **TECHNICAL PROVENANCE PASS; RESTRICTED INTERNAL NON-PRODUCTION PREVIEW TEST SCOPE OWNER-APPROVED**
 - **Upload status:** Not uploaded to Cloudflare or another media provider
 
 ## 1. Materials reviewed
@@ -62,7 +62,7 @@ Even for the limited Preview test, Cloudflare/provider upload must remain blocke
 
 The technical and provenance review is complete. The responsible project owner must explicitly confirm or reject the proposed narrow scope above. The review does not infer approval from the earlier request to create the file.
 
-- Owner approval for restricted internal non-production Preview use: **PENDING**
+- Owner approval for restricted internal non-production Preview use: **APPROVED by project owner on 2026-11-23 in chat**. Approval is limited to the narrow scope in Section 5; it does not authorise provider upload or operational setup.
 - Cloudflare/provider upload authorisation: **NOT GRANTED**
 - Public/commercial/Production use authorisation: **NOT GRANTED**
 
@@ -82,4 +82,4 @@ The technical and provenance review is complete. The responsible project owner m
 | Cloudflare upload and signed playback | Not performed; separate approvals incomplete | **NOT AUTHORIZED** |
 | Commercial distribution / Production use | Outside this review | **NOT AUTHORIZED** |
 
-**Phase 5.37 result: BLOCKED pending explicit owner approval of the restricted internal non-production test scope.** Technical provenance is PASS. No Cloudflare upload, database mutation, playback activation, payment-method change, credential change, or Production operation was performed.
+**Phase 5.37 result: PASS — technical provenance reviewed and the restricted internal non-production Preview test scope was explicitly approved by the project owner on 2026-11-23.** Cloudflare/provider upload remains NOT AUTHORIZED because account/resource/payment/credential/test-window/alert-threshold approvals and separate secure playback readiness are still outstanding. No database mutation, playback activation, payment-method change, credential change, or Production operation was performed.
