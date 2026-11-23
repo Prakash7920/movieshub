@@ -142,3 +142,25 @@ The next gate is a single rights-cleared non-production asset with the underlyin
 - Cloudflare's Direct Upload API requires any `scheduledDeletion` timestamp to be at least 30 days after upload; therefore, the plan requires immediate manual deletion after the short POC, with scheduled deletion used only as a safety net.
 - The prior owner approval of the usage-based cost model and acknowledgement of the no-hard-cap limitation (2026-11-22) remains recorded.
 - **Still not authorised:** Cloudflare account/Stream resource setup, payment-method creation/change, API token/signing-key creation, Preview environment secret changes, upload, database row changes, playback activation, or Production operations. Test window start, alert thresholds/recipients, account confirmation, payment/setup and credential approvals remain pending.
+
+
+## Phase 5.38 owner parameter approval update — 2026-11-23
+
+The project owner explicitly approved the following proposed operational parameters in chat:
+
+- **Test-window duration:** 60 consecutive minutes. The actual start date/time is still to be agreed.
+- **Account-wide budget alert threshold values:** US$5 early warning and US$10 escalation. These values are approved for configuration, but no alert rule has yet been created or saved.
+- The owner has previously acknowledged that Cloudflare Budget Alerts are informational only and do not stop, pause, or cap Stream usage.
+
+Still pending and not authorized by this parameter approval:
+- Confirmation of the exact existing Cloudflare account and its Pay-as-you-go/billing state.
+- Creation/use of a Stream resource.
+- Payment-method setup or change, if the account requires it.
+- Selection of alert recipients in the Cloudflare Dashboard.
+- Confirmation of the exact test start date/time.
+- Creation and storage of a narrowly scoped API credential.
+- Asset upload or playback activation.
+
+**Recorded decision:** `60-MINUTE DURATION APPROVED; US$5/US$10 ALERT VALUES APPROVED; CONFIGURATION AND EXECUTION PENDING`.
+
+No Cloudflare account, resource, alert, payment method, API credential, signing key, upload URL, media upload, database row, environment variable or playback flag was created or changed. Production remains untouched.
