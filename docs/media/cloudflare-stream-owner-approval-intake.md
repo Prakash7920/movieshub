@@ -164,3 +164,22 @@ Still pending and not authorized by this parameter approval:
 **Recorded decision:** `60-MINUTE DURATION APPROVED; US$5/US$10 ALERT VALUES APPROVED; CONFIGURATION AND EXECUTION PENDING`.
 
 No Cloudflare account, resource, alert, payment method, API credential, signing key, upload URL, media upload, database row, environment variable or playback flag was created or changed. Production remains untouched.
+
+
+## Cloudflare account status update — owner report (2026-11-23)
+
+The project owner reports that a Cloudflare account already exists, but no bill has been issued/paid so far. This is recorded as a user-reported fact only; the project team has not independently inspected the account or its billing page.
+
+| Item | State |
+|---|---|
+| Cloudflare account exists | **YES — USER-REPORTED** |
+| Pay-as-you-go billing status | **UNVERIFIED** |
+| Billing profile completion | **UNVERIFIED** |
+| Payment method on file | **UNVERIFIED** |
+| Active subscriptions / Stream storage capacity | **UNVERIFIED** |
+| Current billable usage / invoices | **UNVERIFIED** |
+| Stream resource exists | **NOT VERIFIED — DO NOT ASSUME** |
+
+No bill to date does not establish that Pay-as-you-go billing is active or inactive. Before any Stream resource or payment-method action, the owner must inspect the selected Cloudflare account under **Manage Account → Billing → Subscriptions / Payment methods**, and if available **Billing → Billable Usage**. The review must be read-only. Do not select Add Payment Method, purchase capacity, create a Stream resource, or save any billing change during this verification step.
+
+No account change, payment operation, resource creation, alert configuration, credential creation, media upload, database mutation, environment change, or Production operation was performed.
