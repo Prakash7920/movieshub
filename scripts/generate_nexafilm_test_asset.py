@@ -80,6 +80,7 @@ def draw_frame(base: Image.Image, frame_index: int) -> Image.Image:
         ry = (h * (0.28 + 0.075 * i)) * zoom
         pts = arch_points(cx, base_y, rx, ry)
         alpha = int(165 - 55 * depth)
+        color = (96, 222, 255, alpha)
         gd.line(pts, fill=(53, 196, 255, int(alpha * 0.72)), width=22 if i > 3 else 15)
         ld.line(pts, fill=(143, 235, 255, min(220, alpha + 55)), width=4 if i < 4 else 3)
 
@@ -109,13 +110,13 @@ def draw_frame(base: Image.Image, frame_index: int) -> Image.Image:
         gd.line((w * 0.08, y, w * 0.92, y), fill=(52, 174, 220, 17), width=5)
         ld.line((w * 0.08, y, w * 0.92, y), fill=(120, 219, 247, 30), width=1)
 
-    # Small drifting light particles with deterministic mathematical motion.
+    # Small drifting light particles with a fixed seed and periodic motion.
     particle_count = 48
     for n in range(particle_count):
         px0 = (n * 97.31 + 31.0) % w
         py0 = (n * 53.77 + 17.0) % (h * 0.72)
         px = (px0 + 13.0 * math.sin(t * 0.42 + n * 0.71)) % w
-        py = (py0 - (t * (4.5 + (n % 5)) + 5.0 * math.sin(t * 0.31 + n))) % (h * 0.74)
+        py = (py0 - (t * (4.5 + (n % 5)) + 5.0 * math.sin(t * 0.31 + n)) ) % (h * 0.74)
         r = 1.0 + (n % 3) * 0.45
         a = int(75 + 75 * (0.5 + 0.5 * math.sin(t * 0.8 + n)))
         gd.ellipse((px - r * 3, py - r * 3, px + r * 3, py + r * 3), fill=(86, 213, 255, int(a * 0.45)))
