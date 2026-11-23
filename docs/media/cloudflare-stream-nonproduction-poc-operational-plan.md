@@ -7,6 +7,7 @@
 - **Status:** **PLAN PREPARED — OPERATIONAL EXECUTION NOT AUTHORIZED**
 - **Owner-approved parameters:** Usage-based Stream cost model (2026-11-22); restricted internal non-commercial Preview test scope (2026-11-23); 60-minute test-window duration and US$5/US$10 account-wide alert thresholds (2026-11-23).
 - **Not approved:** Cloudflare account/resource setup, payment-method setup/change, credentials, asset upload, playback activation, Production changes
+- **Account note:** Project owner reports that a Cloudflare account already exists and no bill has been issued/paid so far. Account identity, Pay-as-you-go eligibility, billing profile, payment method, active subscriptions and current usage have **not** been independently verified.
 
 ## 1. Approved asset and purpose
 
@@ -37,7 +38,7 @@ The project owner approved the 60-minute duration and the US$5 early-warning / U
 
 | Control | Proposed value | State |
 |---|---|---|
-| Cloudflare account | Existing owner-controlled Pay-as-you-go account only; confirm correct account before any action | **PENDING** |
+| Cloudflare account | Existing account reported by owner; confirm correct account and whether Pay-as-you-go billing is enabled | **EXISTS — USER-REPORTED; BILLING STATE UNVERIFIED** |
 | Stream scope | One non-production Stream test asset only | **PROPOSED** |
 | Preview origin | Only the exact branch Preview alias: `movieshub-git-phase-5-consolidated-security-ops-nexa-cead.vercel.app` | **PROPOSED** |
 | Asset count | 1; no retries that create duplicate assets without owner review | **PROPOSED** |
@@ -125,7 +126,7 @@ At the end of the test:
 |---|---|
 | Usage-based cost model and no-hard-cap acknowledgement | **APPROVED — 2026-11-22** |
 | Restricted internal test purpose for this exact asset | **APPROVED — 2026-11-23** |
-| Confirm existing Cloudflare account and Pay-as-you-go billing state | **PENDING** |
+| Confirm existing account identity, Pay-as-you-go eligibility and billing profile status | **PENDING — account existence user-reported** |
 | Authorise use/create Stream resource in that account | **PENDING** |
 | Authorise payment-method setup/change, if required | **PENDING — do not change without explicit approval** |
 | Confirm 60-minute test window start date/time | **PENDING — duration approved 2026-11-23** |
@@ -136,6 +137,6 @@ At the end of the test:
 
 ## 9. Decision
 
-**Phase 5.38 result: PLAN PREPARED; 60-MINUTE DURATION AND US$5/US$10 ALERT VALUES OWNER-APPROVED. OPERATIONAL EXECUTION REMAINS BLOCKED PENDING ACCOUNT, RESOURCE, PAYMENT, RECIPIENT, START-TIME AND CREDENTIAL APPROVALS.** This checkpoint is documentation-only. No Cloudflare account/resource, paid subscription, payment method, API token, signing key, upload URL, media upload, Preview/Production environment variable, database row, playback flag, or Production resource was created or changed.
+**Phase 5.38 result: PLAN PREPARED; 60-MINUTE DURATION AND US$5/US$10 ALERT VALUES OWNER-APPROVED. AN EXISTING CLOUDFLARE ACCOUNT IS USER-REPORTED, BUT PAY-AS-YOU-GO/BILLING PROFILE/PAYMENT METHOD STATE IS UNVERIFIED. OPERATIONAL EXECUTION REMAINS BLOCKED PENDING ACCOUNT/BILLING VERIFICATION, RESOURCE, PAYMENT, RECIPIENT, START-TIME AND CREDENTIAL APPROVALS.** This checkpoint is documentation-only. No Cloudflare account/resource, paid subscription, payment method, API token, signing key, upload URL, media upload, Preview/Production environment variable, database row, playback flag, or Production resource was created or changed.
 
 The cost-model approval, restricted internal test-scope approval, 60-minute test-window duration approval and US$5/US$10 alert-value approval are recorded. These approvals do not substitute for the outstanding operational approvals listed above.
