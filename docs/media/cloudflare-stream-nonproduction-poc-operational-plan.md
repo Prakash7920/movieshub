@@ -5,7 +5,7 @@
 - **Branch:** `phase-5/consolidated-security-ops`
 - **Target:** Existing NexaFilm Preview deployment for branch `phase-5/consolidated-security-ops`
 - **Status:** **PLAN PREPARED — OPERATIONAL EXECUTION NOT AUTHORIZED**
-- **Approved separately:** Usage-based Stream cost model (2026-11-22); restricted internal non-commercial Preview test scope for the original procedural test asset (2026-11-23)
+- **Owner-approved parameters:** Usage-based Stream cost model (2026-11-22); restricted internal non-commercial Preview test scope (2026-11-23); 60-minute test-window duration and US$5/US$10 account-wide alert thresholds (2026-11-23).
 - **Not approved:** Cloudflare account/resource setup, payment-method setup/change, credentials, asset upload, playback activation, Production changes
 
 ## 1. Approved asset and purpose
@@ -31,9 +31,9 @@ Official pricing: https://developers.cloudflare.com/stream/pricing/ (the current
 
 **Important:** Deleting the asset releases storage usage, but this plan does not assume deletion reverses, refunds, or immediately cancels any prepaid capacity charge. Confirm the account's actual billable usage/invoice.
 
-## 3. Proposed operational controls — require a separate approval
+## 3. Operational controls — current approval state
 
-These are recommendations for the first test, not saved settings or permission to create them.
+The project owner approved the 60-minute duration and the US$5 early-warning / US$10 escalation threshold values on 2026-11-23. These are parameter approvals only; no Cloudflare dashboard settings or alert rules have been configured. The precise test start date/time and alert recipients remain pending. Other rows marked proposed are not approvals.
 
 | Control | Proposed value | State |
 |---|---|---|
@@ -43,10 +43,10 @@ These are recommendations for the first test, not saved settings or permission t
 | Asset count | 1; no retries that create duplicate assets without owner review | **PROPOSED** |
 | Upload duration limit | `maxDurationSeconds=15` for the 10-second source | **PROPOSED** |
 | Direct-upload URL lifetime | 15 minutes from creation; one upload only | **PROPOSED** |
-| Test window | 60 consecutive minutes, with the start date/time to be agreed before execution | **PENDING** |
+| Test window | 60 consecutive minutes | **DURATION APPROVED — START DATE/TIME PENDING** |
 | Tester group | Project owner only; one authenticated operator | **PROPOSED** |
 | Playback allowance | At most 10 successful full-play attempts; no external testers | **PROPOSED — SOFT OPERATIONAL LIMIT, NOT A BILLING CAP** |
-| Budget alerts | US$5 early warning and US$10 escalation, account-wide, if the owner approves | **PENDING** |
+| Budget alerts | US$5 early warning and US$10 escalation, account-wide | **VALUES APPROVED — CONFIGURATION PENDING** |
 | Alert recipients | Cloudflare billing owner and nominated project owner, selected inside the dashboard | **PENDING** |
 | Cleanup | Manually delete the single test asset immediately after the test; verify deletion and billable usage | **PROPOSED** |
 | Public playback / downloads | No public ID playback; downloads remain disabled | **MANDATORY** |
@@ -128,13 +128,14 @@ At the end of the test:
 | Confirm existing Cloudflare account and Pay-as-you-go billing state | **PENDING** |
 | Authorise use/create Stream resource in that account | **PENDING** |
 | Authorise payment-method setup/change, if required | **PENDING — do not change without explicit approval** |
-| Confirm 60-minute test window start date/time | **PENDING** |
-| Approve US$5 and US$10 account-wide alert thresholds and recipients | **PENDING** |
+| Confirm 60-minute test window start date/time | **PENDING — duration approved 2026-11-23** |
+| Approve US$5 / US$10 account-wide threshold values | **APPROVED — 2026-11-23; configuration not applied** |
+| Select alert recipients | **PENDING** |
 | Authorise dedicated Stream API token creation and Preview secret storage | **PENDING** |
 | Confirm the exact Preview origin and upload/cleanup operator | **PENDING** |
 
 ## 9. Decision
 
-**Phase 5.38 result: PLAN PREPARED; OPERATIONAL EXECUTION BLOCKED PENDING SEPARATE APPROVALS.** This checkpoint is documentation-only. No Cloudflare account/resource, paid subscription, payment method, API token, signing key, upload URL, media upload, Preview/Production environment variable, database row, playback flag, or Production resource was created or changed.
+**Phase 5.38 result: PLAN PREPARED; 60-MINUTE DURATION AND US$5/US$10 ALERT VALUES OWNER-APPROVED. OPERATIONAL EXECUTION REMAINS BLOCKED PENDING ACCOUNT, RESOURCE, PAYMENT, RECIPIENT, START-TIME AND CREDENTIAL APPROVALS.** This checkpoint is documentation-only. No Cloudflare account/resource, paid subscription, payment method, API token, signing key, upload URL, media upload, Preview/Production environment variable, database row, playback flag, or Production resource was created or changed.
 
-The earlier cost-model approval and internal test-scope approval remain valid but do not substitute for the outstanding operational approvals listed above.
+The cost-model approval, restricted internal test-scope approval, 60-minute test-window duration approval and US$5/US$10 alert-value approval are recorded. These approvals do not substitute for the outstanding operational approvals listed above.
