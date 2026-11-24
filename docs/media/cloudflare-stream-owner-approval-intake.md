@@ -224,3 +224,24 @@ Cloudflare's official billing documentation states that a primary payment method
 | Pay-as-you-go / Stream billing eligibility | **UNVERIFIED** |
 | Payment-method addition | **NOT APPROVED / NOT PERFORMED** |
 | Cloudflare Stream resource and media upload | **NOT CREATED / NOT PERFORMED** |
+
+
+## Owner approval — add primary payment method personally (2026-11-24)
+
+After reviewing the supplied Subscriptions screenshot (which shows **Workers Free — Active** and **No payment method on file**), the project owner explicitly approved adding a primary payment method personally through the Cloudflare Dashboard.
+
+**Scope of approval:** owner-initiated addition of a primary payment method and completion of the associated billing profile only. The approval does not mean the payment method has been entered, saved, validated, or charged. The owner must review Cloudflare's checkout/payment confirmation directly.
+
+**Not authorised by this approval:** the assistant entering or changing payment details; purchasing a Workers or other paid plan; provisioning a Cloudflare Stream resource or storage capacity; creating budget-alert rules; creating API tokens/signing keys; uploading media; enabling playback; or making Production changes.
+
+Cloudflare's current billing instructions are:
+1. In the Cloudflare Dashboard, open **Billing → Subscriptions**.
+2. Open the **Payment methods** panel and select **Add Payment Method**.
+3. Choose a supported payment method, enter the details directly in Cloudflare, complete any issuer authentication such as 3D Secure, review billing/contact information and select **Confirm**.
+4. Verify the newly added method appears in the Payment methods panel.
+
+Official source: https://developers.cloudflare.com/billing/get-started/create-billing-profile/ (last updated 2026-05-29; accessed 2026-11-24).
+
+Cloudflare's billing policy also states it may preauthorise a payment method for usage-based services; this can be a temporary hold to verify that the method can cover accrued usage. The project owner must review the live confirmation and their issuer's notifications. Official source: https://developers.cloudflare.com/billing/understand/billing-policy/.
+
+**Current status:** owner approval **APPROVED**; payment method addition **PENDING OWNER ACTION**; Stream resource and upload **NOT AUTHORIZED / NOT PERFORMED**. Do not share card numbers, CVV, bank credentials or OTPs in chat or screenshots.
