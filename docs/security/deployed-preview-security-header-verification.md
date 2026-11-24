@@ -9,7 +9,7 @@
 - **Target URL:** `https://movieshub-632nb5nwp-nexa-cead.vercel.app`
 - **CI run:** #587 — completed successfully (dependencies, Prisma, isolated integration DB, database integration tests, unit tests, TypeScript, Next.js build, Playwright browser E2E)
 - **Vercel Preview:** READY
-- **Result:** **SOURCE CONFIGURATION PASS; DEPLOYED RESPONSE HEADER VERIFICATION BLOCKED BY PREVIEW SSO ACCESS**
+- **Result:** **PASS — DEPLOYED RESPONSE HEADERS VERIFIED ON THREE ROUTES USING VERCEL'S TEMPORARY PROTECTED-DEPLOYMENT FETCH; SSO AND PRODUCTION ROUTING UNCHANGED**
 
 ## 1. Source configuration inspected
 
@@ -27,7 +27,7 @@ The current branch's `next.config.mjs` defines the following response headers fo
 
 Repository file: `next.config.mjs`; reviewed at current branch head `fb6b6f72a5d7f8969de096641cbaac48e3c3076b`.
 
-Source configuration and passing build demonstrate that the application compiles with these rules. They do not prove the headers arrive unchanged on the deployed HTTP response.
+Source configuration was then compared with actual deployed HTTP response headers on the exact Preview deployment, using Vercel's protected-deployment fetch mechanism. The values below were returned on `/`, `/movies`, and `/api/health`.
 
 ## 2. Current deployment and protection evidence
 
@@ -41,25 +41,38 @@ Read-only Vercel project inspection returned:
 
 Therefore, the current Preview deployment's generated hostname is within the SSO-protected non-custom-domain scope. The listed custom domains are not recorded as branch-specific Preview domains; using them risks checking the live/default deployment rather than the exact PR Preview.
 
-## 3. Why no bypass was used
+## 3. Protected Preview fetch and actual response evidence
 
-The project has an existing Vercel Protection Bypass for Automation credential. Its previously approved purpose is limited to the Preview Razorpay webhook URL. The secret and query URL are credentials and are not copied into this report.
+Vercel's protected-deployment fetch tool was used against the exact Preview deployment URL. The tool creates or reuses a temporary share link for the protected deployment and returns the HTTP response; newly created links expire after 23 hours. The tool did not require reuse of the existing Razorpay webhook bypass secret. No SSO or project protection setting was changed.
 
-The existing project-wide bypass was **not** reused for general page/header testing. No new bypass secret was generated, no SSO/protection settings were changed, and no custom domain/DNS routing was created. The unauthenticated Preview response headers were therefore not obtained during this checkpoint.
+The same Preview deployment was queried on three routes:
 
-Vercel's published documentation describes protected Preview access for automated agents using the `x-vercel-protection-bypass` header or a query parameter. Those methods require possession/use of a bypass credential and are not an independent unprotected test route:
-- https://vercel.com/docs/deployment-protection/automated-agent-access
-- https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation
+| Route | HTTP status | X-Content-Type-Options | X-Frame-Options | Referrer-Policy | Permissions-Policy | X-Permitted-Cross-Domain-Policies | Origin-Agent-Cluster | Strict-Transport-Security |
+|---|---:|---|---|---|---|---|---|---|
+| `/` | **200** | `nosniff` | `DENY` | `strict-origin-when-cross-origin` | `camera=(), microphone=(), geolocation=()` | `none` | `?1` | `max-age=31536000; includeSubDomains` |
+| `/movies` | **200** | `nosniff` | `DENY` | `strict-origin-when-cross-origin` | `camera=(), microphone=(), geolocation=()` | `none` | `?1` | `max-age=31536000; includeSubDomains` |
+| `/api/health` | **200** | `nosniff` | `DENY` | `strict-origin-when-cross-origin` | `camera=(), microphone=(), geolocation=()` | `none` | `?1` | `max-age=31536000; includeSubDomains` |
 
-A direct public browser-tool attempt to open the protected target did not return an inspectable response; no header values are inferred from that failed access attempt.
+Additional observed header on all three responses: `X-Robots-Tag: noindex`. The responses were from Vercel and included the same security-header values across the HTML page, catalogue route and health API route. This is direct deployed response evidence for this deployment/commit and these paths, not a claim that every route/path has been separately probed.
 
-## 4. Evidence required to close the gate
+The following access conditions remained intact:
+- Project SSO protection remains enabled with `deploymentType=all_except_custom_domains`.
+- The existing Razorpay webhook bypass secret was not reused or exposed.
+- No new bypass credential was created.
+- No Vercel SSO/protection setting was changed.
 
-Use one of the following only after separate explicit approval:
-1. A dedicated branch-specific Preview custom domain, with DNS/domain ownership and protection scope reviewed, routed specifically to `phase-5/consolidated-security-ops`; or
-2. A separately approved, narrowly scoped temporary Preview access method for header verification, with a new limited-purpose credential and immediate revocation after the test. Do not reuse the Razorpay webhook bypass URL/secret.
+## 4. Dedicated hostname attempt — added but deliberately not routed
 
-Then issue unauthenticated and authorised requests to the exact branch Preview root and representative application/API routes. Capture the actual HTTP status and response headers, verify every value in Section 1, and retain evidence showing the tested host, deployment commit and timestamp. Confirm HSTS is present only under the intended HTTPS/production conditions, and ensure no security header is overwritten or duplicated inconsistently by the hosting edge.
+As approved, `phase5-preview.nexafilm.in` was added to project `movieshub` and bound to Git branch `phase-5/consolidated-security-ops`. Vercel reports the project-domain association as `verified=true` and returns the intended `gitBranch`.
+
+However:
+- The domain's authoritative nameservers are `ns31.domaincontrol.com` and `ns32.domaincontrol.com` (external DNS service, not Vercel DNS).
+- Vercel's domain config reports the new host as `misconfigured=true`, with no CNAME/A record detected for the new hostname. Its current recommended CNAME target is `6d36e5e7b4238d74.vercel-dns-017.com.`.
+- An alias assignment failed with `cert_missing`; the subsequent certificate request failed with `http_pretest_domain_not_resolving_to_vercel_error`.
+- No DNS record was added or changed; no alias was assigned and no TLS certificate was issued.
+- Crucially, current project SSO configuration is `all_except_custom_domains`, so a custom hostname would be excluded from Vercel SSO. We did not make the hostname resolve or expose the Preview app through it.
+
+Because protected Preview fetch successfully returned the actual headers, a DNS change/public custom-domain route is not needed for this checkpoint. Keep the new project-domain association inert; do not add the CNAME unless a separate access-control design and explicit approval are agreed. The hostname is not currently a working public route.
 
 ## 5. Gate result
 
@@ -69,11 +82,13 @@ Then issue unauthenticated and authorised requests to the exact branch Preview r
 | Current commit's CI and browser E2E | **PASS — run #587** |
 | Exact target Preview deployment availability | **PASS — READY** |
 | SSO protection scope inspected | **PASS — confirmed enabled for non-custom domains** |
-| Branch-specific unprotected Preview custom domain | **NOT AVAILABLE IN INSPECTED DOMAIN LIST** |
-| Actual deployed application HTTP response headers | **NOT VERIFIED** |
-| Reuse of webhook bypass credential | **NOT USED** |
-| Protection/DNS changes | **NONE** |
+| Dedicated branch-specific hostname project binding | **PASS — added to exact Preview branch** |
+| Dedicated hostname DNS/TLS route | **NOT ACTIVE — no DNS record or TLS certificate; deliberately not exposed** |
+| Actual deployed application response headers on `/`, `/movies`, `/api/health` | **PASS — HTTP 200 on all three; all seven security headers match** |
+| Reuse of Razorpay webhook bypass credential | **NOT USED** |
+| SSO/protection settings | **UNCHANGED** |
+| Production DNS, aliases, routing or resources | **UNCHANGED** |
 
-**Phase 5.39 result: BLOCKED — deployed response header verification cannot be performed safely with the currently available Preview access route.** Source configuration remains present, but do not mark the deployed-header release gate PASS. The next enabling action requires owner approval of a dedicated branch Preview access method; no bypass or DNS change is authorised by this report.
+**Phase 5.39 result: PASS — deployed response headers independently observed on three paths of the exact Preview deployment.** The protected-deployment fetch used Vercel's temporary access-link mechanism; Preview SSO remained enabled, and the Razorpay webhook bypass secret was not reused. The separately approved custom hostname is registered against the intended branch but remains non-resolving and unaliased because DNS is external and custom domains are excluded from the current SSO scope. No DNS change or public route was activated.
 
-No source code, security headers, Vercel SSO settings, bypass credential, domain/DNS record, environment variable, database, payment setup, Cloudflare resource, media upload, playback flag or Production resource was changed.
+No source code, application security headers, Vercel SSO/protection setting, bypass credential, DNS record, environment variable, database, payment setup, Cloudflare resource, media upload, playback flag or Production resource was changed.
