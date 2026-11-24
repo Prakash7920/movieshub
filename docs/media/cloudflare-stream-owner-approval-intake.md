@@ -183,3 +183,25 @@ The project owner reports that a Cloudflare account already exists, but no bill 
 No bill to date does not establish that Pay-as-you-go billing is active or inactive. Before any Stream resource or payment-method action, the owner must inspect the selected Cloudflare account under **Manage Account → Billing → Subscriptions / Payment methods**, and if available **Billing → Billable Usage**. The review must be read-only. Do not select Add Payment Method, purchase capacity, create a Stream resource, or save any billing change during this verification step.
 
 No account change, payment operation, resource creation, alert configuration, credential creation, media upload, database mutation, environment change, or Production operation was performed.
+
+
+## Cloudflare Billable Usage screenshot observation — 2026-11-24
+
+The owner supplied a screenshot of the Cloudflare Dashboard. The **Billable usage** tab is selected with period **Current Month**, and the panel displays **“No data.”** The same screen states:
+- Data is refreshed daily and is for estimation purposes only.
+- Monthly calendar views may not align with the account billing period.
+- The view includes only product activity that would be reflected on the bill.
+
+This establishes only that the selected dashboard view displayed no data at the screenshot time (approximately 21:17 IST on 2026-11-24). It does **not** independently establish that Pay-as-you-go billing is active, that the billing profile is complete, that a payment method is already attached, or that the account has had no chargeable activity in every billing view. The page does not show the Payment methods or Subscriptions details.
+
+| Verification item | Current evidence |
+|---|---|
+| Account exists | Owner-reported |
+| Current Month Billable Usage panel | **“No data” displayed in screenshot — 2026-11-24** |
+| Billing period alignment / freshness | Dashboard says daily refresh and estimation-only |
+| Pay-as-you-go subscription | **UNVERIFIED** |
+| Billing profile / payment method | **UNVERIFIED** |
+| Stream subscription or storage capacity | **UNVERIFIED** |
+| Cloudflare Stream resource | **NOT VERIFIED — DO NOT ASSUME** |
+
+Next verification remains read-only: inspect **Subscriptions** and **Payment methods** in the same account. Do not select Add Payment Method, change billing, purchase capacity, create a Stream resource or configure alerts during that check.
