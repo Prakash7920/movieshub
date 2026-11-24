@@ -8,6 +8,7 @@
 - **Owner-approved parameters:** Usage-based Stream cost model (2026-11-22); restricted internal non-commercial Preview test scope (2026-11-23); 60-minute test-window duration and US$5/US$10 account-wide alert thresholds (2026-11-23).
 - **Not approved:** Cloudflare account/resource setup, payment-method setup/change, credentials, asset upload, playback activation, Production changes
 - **Account note:** Project owner reports that a Cloudflare account already exists and no bill has been issued/paid so far. Account identity, Pay-as-you-go eligibility, billing profile, payment method, active subscriptions and current usage have **not** been independently verified.
+- **Billable Usage observation:** Owner supplied a Cloudflare Dashboard screenshot on **2026-11-24 at approximately 21:17 IST**. The Billable usage tab was selected, period was **Current Month**, and the panel displayed **“No data.”** The dashboard itself states data is refreshed daily, is for estimation purposes only, monthly calendar views may not align with the account billing period, and the view only includes activity that would be reflected on the bill. This observation is limited to the visible page at that time; it does not prove Pay-as-you-go status, a complete billing profile, absence of all charges, or whether a payment method is on file.
 
 ## 1. Approved asset and purpose
 
@@ -39,6 +40,7 @@ The project owner approved the 60-minute duration and the US$5 early-warning / U
 | Control | Proposed value | State |
 |---|---|---|
 | Cloudflare account | Existing account reported by owner; confirm correct account and whether Pay-as-you-go billing is enabled | **EXISTS — USER-REPORTED; BILLING STATE UNVERIFIED** |
+| Billable Usage (Current Month) | Screenshot shows “No data”; page notes daily refresh and estimation-only reporting | **OBSERVED — NO DATA DISPLAYED 2026-11-24; NOT A BILLING-STATUS CONFIRMATION** |
 | Stream scope | One non-production Stream test asset only | **PROPOSED** |
 | Preview origin | Only the exact branch Preview alias: `movieshub-git-phase-5-consolidated-security-ops-nexa-cead.vercel.app` | **PROPOSED** |
 | Asset count | 1; no retries that create duplicate assets without owner review | **PROPOSED** |
@@ -127,6 +129,7 @@ At the end of the test:
 | Usage-based cost model and no-hard-cap acknowledgement | **APPROVED — 2026-11-22** |
 | Restricted internal test purpose for this exact asset | **APPROVED — 2026-11-23** |
 | Confirm existing account identity, Pay-as-you-go eligibility and billing profile status | **PENDING — account existence user-reported** |
+| Verify payment method already on file and current billing profile status | **PENDING — screenshot does not show this** |
 | Authorise use/create Stream resource in that account | **PENDING** |
 | Authorise payment-method setup/change, if required | **PENDING — do not change without explicit approval** |
 | Confirm 60-minute test window start date/time | **PENDING — duration approved 2026-11-23** |
