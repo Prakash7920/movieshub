@@ -196,12 +196,31 @@ This establishes only that the selected dashboard view displayed no data at the 
 
 | Verification item | Current evidence |
 |---|---|
-| Account exists | Owner-reported |
+| Cloudflare account exists | **YES — USER-REPORTED** |
 | Current Month Billable Usage panel | **“No data” displayed in screenshot — 2026-11-24** |
-| Billing period alignment / freshness | Dashboard says daily refresh and estimation-only |
-| Pay-as-you-go subscription | **UNVERIFIED** |
-| Billing profile / payment method | **UNVERIFIED** |
-| Stream subscription or storage capacity | **UNVERIFIED** |
-| Cloudflare Stream resource | **NOT VERIFIED — DO NOT ASSUME** |
+| Subscribed products shown | **Workers Free — Active (Compute); no Stream item visible in supplied screenshot** |
+| Payment method on file | **NO — screenshot explicitly states “No payment method on file”** |
+| Pay-as-you-go subscription / Stream billing eligibility | **UNVERIFIED** |
+| Billing profile completion | **UNVERIFIED** |
+| Stream storage capacity / resource | **NOT VERIFIED — DO NOT ASSUME** |
+| Billable usage freshness / period | Dashboard says daily refresh and estimation-only; calendar month may not align with billing period | **OBSERVED — LIMITED TO SCREENSHOT** |
 
 Next verification remains read-only: inspect **Subscriptions** and **Payment methods** in the same account. Do not select Add Payment Method, change billing, purchase capacity, create a Stream resource or configure alerts during that check.
+
+
+## Cloudflare Subscriptions screenshot observation — 2026-11-24
+
+The owner supplied a second Cloudflare Dashboard screenshot of the **Subscriptions** page. In the **Subscribed** tab it shows one product under the **Compute** category: **Workers Free — Active**. The **Payment method** panel explicitly states **“No payment method on file.”** No Cloudflare Stream subscription is visible in the supplied screen.
+
+This establishes only what is visible on that Subscriptions page at the screenshot time (approximately 21:22 IST on 2026-11-24). It does not establish the account's full domain plan, confirm Pay-as-you-go status, or prove whether Cloudflare Stream might appear in another account/product page. The earlier Current Month Billable Usage screenshot shows “No data,” with a dashboard note that the data refreshes daily and is estimation-only.
+
+Cloudflare's official billing documentation states that a primary payment method is required to purchase Cloudflare products and services: https://developers.cloudflare.com/billing/get-started/create-billing-profile/ (reviewed 2026-11-24). Therefore, paid Stream provisioning cannot proceed on the evidence shown until the owner independently completes the billing-profile/payment-method step. Adding a payment method has not been approved or performed in this checkpoint.
+
+| Item | Verified state |
+|---|---|
+| Workers subscription shown | **Workers Free — Active** |
+| Payment method on file | **NO — screenshot says none on file** |
+| Stream subscription visible | **NO Stream item visible in supplied screenshot** |
+| Pay-as-you-go / Stream billing eligibility | **UNVERIFIED** |
+| Payment-method addition | **NOT APPROVED / NOT PERFORMED** |
+| Cloudflare Stream resource and media upload | **NOT CREATED / NOT PERFORMED** |
