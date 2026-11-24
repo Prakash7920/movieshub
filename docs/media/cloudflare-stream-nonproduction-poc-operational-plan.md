@@ -7,7 +7,7 @@
 - **Status:** **PLAN PREPARED — OPERATIONAL EXECUTION NOT AUTHORIZED**
 - **Owner-approved parameters:** Usage-based Stream cost model (2026-11-22); restricted internal non-commercial Preview test scope (2026-11-23); 60-minute test-window duration and US$5/US$10 account-wide alert thresholds (2026-11-23).
 - **Not approved:** Cloudflare account/resource setup, payment-method setup/change, credentials, asset upload, playback activation, Production changes
-- **Account note:** Project owner reports that a Cloudflare account already exists and no bill has been issued/paid so far. Account identity, Pay-as-you-go eligibility, billing profile, payment method, active subscriptions and current usage have **not** been independently verified.
+- **Account note:** Project owner reports an existing Cloudflare account. The 2026-11-24 Subscriptions screenshot shows **Workers Free — Active** under Compute and explicitly states **No payment method on file**. The screenshot does not show a Stream subscription. Pay-as-you-go billing status, full billing profile and any Stream-specific account entitlement remain **unverified**.
 - **Billable Usage observation:** Owner supplied a Cloudflare Dashboard screenshot on **2026-11-24 at approximately 21:17 IST**. The Billable usage tab was selected, period was **Current Month**, and the panel displayed **“No data.”** The dashboard itself states data is refreshed daily, is for estimation purposes only, monthly calendar views may not align with the account billing period, and the view only includes activity that would be reflected on the bill. This observation is limited to the visible page at that time; it does not prove Pay-as-you-go status, a complete billing profile, absence of all charges, or whether a payment method is on file.
 
 ## 1. Approved asset and purpose
@@ -41,6 +41,7 @@ The project owner approved the 60-minute duration and the US$5 early-warning / U
 |---|---|---|
 | Cloudflare account | Existing account reported by owner; confirm correct account and whether Pay-as-you-go billing is enabled | **EXISTS — USER-REPORTED; BILLING STATE UNVERIFIED** |
 | Billable Usage (Current Month) | Screenshot shows “No data”; page notes daily refresh and estimation-only reporting | **OBSERVED — NO DATA DISPLAYED 2026-11-24; NOT A BILLING-STATUS CONFIRMATION** |
+| Subscribed products / payment method | 2026-11-24 screenshot shows Workers Free — Active; Payment method panel says No payment method on file; no Stream item visible | **OBSERVED — NO PAYMENT METHOD; STREAM SUBSCRIPTION NOT SHOWN** |
 | Stream scope | One non-production Stream test asset only | **PROPOSED** |
 | Preview origin | Only the exact branch Preview alias: `movieshub-git-phase-5-consolidated-security-ops-nexa-cead.vercel.app` | **PROPOSED** |
 | Asset count | 1; no retries that create duplicate assets without owner review | **PROPOSED** |
@@ -128,8 +129,8 @@ At the end of the test:
 |---|---|
 | Usage-based cost model and no-hard-cap acknowledgement | **APPROVED — 2026-11-22** |
 | Restricted internal test purpose for this exact asset | **APPROVED — 2026-11-23** |
-| Confirm existing account identity, Pay-as-you-go eligibility and billing profile status | **PENDING — account existence user-reported** |
-| Verify payment method already on file and current billing profile status | **PENDING — screenshot does not show this** |
+| Confirm existing account identity and any Stream/Pay-as-you-go eligibility | **PENDING — Workers Free listing does not establish Stream billing eligibility** |
+| Add/verify a primary payment method and complete billing profile | **NOT DONE — screenshot explicitly says none on file; requires separate owner decision** |
 | Authorise use/create Stream resource in that account | **PENDING** |
 | Authorise payment-method setup/change, if required | **PENDING — do not change without explicit approval** |
 | Confirm 60-minute test window start date/time | **PENDING — duration approved 2026-11-23** |
@@ -140,6 +141,6 @@ At the end of the test:
 
 ## 9. Decision
 
-**Phase 5.38 result: PLAN PREPARED; 60-MINUTE DURATION AND US$5/US$10 ALERT VALUES OWNER-APPROVED. AN EXISTING CLOUDFLARE ACCOUNT IS USER-REPORTED, BUT PAY-AS-YOU-GO/BILLING PROFILE/PAYMENT METHOD STATE IS UNVERIFIED. OPERATIONAL EXECUTION REMAINS BLOCKED PENDING ACCOUNT/BILLING VERIFICATION, RESOURCE, PAYMENT, RECIPIENT, START-TIME AND CREDENTIAL APPROVALS.** This checkpoint is documentation-only. No Cloudflare account/resource, paid subscription, payment method, API token, signing key, upload URL, media upload, Preview/Production environment variable, database row, playback flag, or Production resource was created or changed.
+**Phase 5.38 result: PLAN PREPARED; 60-MINUTE DURATION AND US$5/US$10 ALERT VALUES OWNER-APPROVED. THE DASHBOARD SHOWS WORKERS FREE ACTIVE AND NO PAYMENT METHOD ON FILE; NO STREAM SUBSCRIPTION IS SHOWN. CLOUDflare STREAM PAID BILLING SETUP REMAINS BLOCKED UNTIL THE OWNER SEPARATELY DECIDES WHETHER TO ADD A PRIMARY PAYMENT METHOD AND COMPLETES THE REQUIRED BILLING PROFILE. OPERATIONAL EXECUTION ALSO REQUIRES RESOURCE, RECIPIENT, START-TIME AND CREDENTIAL APPROVALS.** This checkpoint is documentation-only. No Cloudflare account/resource, paid subscription, payment method, API token, signing key, upload URL, media upload, Preview/Production environment variable, database row, playback flag, or Production resource was created or changed.
 
 The cost-model approval, restricted internal test-scope approval, 60-minute test-window duration approval and US$5/US$10 alert-value approval are recorded. These approvals do not substitute for the outstanding operational approvals listed above.
