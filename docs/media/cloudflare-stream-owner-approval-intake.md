@@ -245,3 +245,24 @@ Official source: https://developers.cloudflare.com/billing/get-started/create-bi
 Cloudflare's billing policy also states it may preauthorise a payment method for usage-based services; this can be a temporary hold to verify that the method can cover accrued usage. The project owner must review the live confirmation and their issuer's notifications. Official source: https://developers.cloudflare.com/billing/understand/billing-policy/.
 
 **Current status:** owner approval **APPROVED**; payment method addition **PENDING OWNER ACTION**; Stream resource and upload **NOT AUTHORIZED / NOT PERFORMED**. Do not share card numbers, CVV, bank credentials or OTPs in chat or screenshots.
+
+
+## Owner deferral — subscription and payment setup postponed until final activation (2026-11-24)
+
+The owner subsequently clarified: **do not subscribe or add a payment method now; complete the NexaFilm build first and handle subscription/billing at the final stage.**
+
+This later instruction supersedes the earlier same-day approval to add a primary payment method personally. The earlier approval remains historical only and must not be treated as current authorization.
+
+| Item | Current decision |
+|---|---|
+| Add primary payment method now | **DEFERRED — DO NOT DO NOW** |
+| Purchase/subscribe to Cloudflare Stream now | **DEFERRED — DO NOT DO NOW** |
+| Create paid Stream resource / buy storage capacity now | **DEFERRED — DO NOT DO NOW** |
+| Complete remaining NexaFilm implementation and Preview validation | **CONTINUE** |
+| Revisit billing at final activation | **PENDING — require fresh explicit owner confirmation at that stage** |
+
+The approved usage-based cost model, no-hard-cap acknowledgement, 60-minute proposed test-window duration, US$5/US$10 alert threshold values, and restricted internal test-asset purpose remain recorded. These parameter approvals do not authorize spending or provider-side setup now.
+
+During the build phase, continue only provider-independent implementation, documentation, mocked provider tests, and fail-closed Preview validation. Keep Cloudflare payment setup, Stream resources, alert configuration, credentials, upload, and playback activation off until the final activation decision.
+
+No payment method, subscription, Stream resource, alert rule, API credential, upload URL, asset upload, database row, environment change, playback flag or Production resource was created or changed as part of this deferral.
