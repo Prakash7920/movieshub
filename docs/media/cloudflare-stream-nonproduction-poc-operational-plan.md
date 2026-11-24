@@ -6,7 +6,8 @@
 - **Target:** Existing NexaFilm Preview deployment for branch `phase-5/consolidated-security-ops`
 - **Status:** **PLAN PREPARED — OPERATIONAL EXECUTION NOT AUTHORIZED**
 - **Owner-approved parameters:** Usage-based Stream cost model (2026-11-22); restricted internal non-commercial Preview test scope (2026-11-23); 60-minute test-window duration and US$5/US$10 account-wide alert thresholds (2026-11-23).
-- **Not approved:** Cloudflare account/resource setup, payment-method setup/change, credentials, asset upload, playback activation, Production changes
+- **New owner approval:** Project owner approved adding a primary payment method personally through the Cloudflare Dashboard on 2026-11-24. This is authorization for the owner to complete that billing-profile step only; it does not indicate that a method has been added or confirmed.
+- **Still not approved:** Assistant-initiated payment-method changes, Stream account/resource provisioning, credentials, asset upload, playback activation, Production changes.
 - **Account note:** Project owner reports an existing Cloudflare account. The 2026-11-24 Subscriptions screenshot shows **Workers Free — Active** under Compute and explicitly states **No payment method on file**. The screenshot does not show a Stream subscription. Pay-as-you-go billing status, full billing profile and any Stream-specific account entitlement remain **unverified**.
 - **Billable Usage observation:** Owner supplied a Cloudflare Dashboard screenshot on **2026-11-24 at approximately 21:17 IST**. The Billable usage tab was selected, period was **Current Month**, and the panel displayed **“No data.”** The dashboard itself states data is refreshed daily, is for estimation purposes only, monthly calendar views may not align with the account billing period, and the view only includes activity that would be reflected on the bill. This observation is limited to the visible page at that time; it does not prove Pay-as-you-go status, a complete billing profile, absence of all charges, or whether a payment method is on file.
 
@@ -130,7 +131,8 @@ At the end of the test:
 | Usage-based cost model and no-hard-cap acknowledgement | **APPROVED — 2026-11-22** |
 | Restricted internal test purpose for this exact asset | **APPROVED — 2026-11-23** |
 | Confirm existing account identity and any Stream/Pay-as-you-go eligibility | **PENDING — Workers Free listing does not establish Stream billing eligibility** |
-| Add/verify a primary payment method and complete billing profile | **NOT DONE — screenshot explicitly says none on file; requires separate owner decision** |
+| Owner approval to add a primary payment method personally | **APPROVED — 2026-11-24; owner action only** |
+| Add/verify a primary payment method and complete billing profile | **PENDING — screenshot explicitly says none on file; not yet added** |
 | Authorise use/create Stream resource in that account | **PENDING** |
 | Authorise payment-method setup/change, if required | **PENDING — do not change without explicit approval** |
 | Confirm 60-minute test window start date/time | **PENDING — duration approved 2026-11-23** |
@@ -141,6 +143,6 @@ At the end of the test:
 
 ## 9. Decision
 
-**Phase 5.38 result: PLAN PREPARED; 60-MINUTE DURATION AND US$5/US$10 ALERT VALUES OWNER-APPROVED. THE DASHBOARD SHOWS WORKERS FREE ACTIVE AND NO PAYMENT METHOD ON FILE; NO STREAM SUBSCRIPTION IS SHOWN. CLOUDflare STREAM PAID BILLING SETUP REMAINS BLOCKED UNTIL THE OWNER SEPARATELY DECIDES WHETHER TO ADD A PRIMARY PAYMENT METHOD AND COMPLETES THE REQUIRED BILLING PROFILE. OPERATIONAL EXECUTION ALSO REQUIRES RESOURCE, RECIPIENT, START-TIME AND CREDENTIAL APPROVALS.** This checkpoint is documentation-only. No Cloudflare account/resource, paid subscription, payment method, API token, signing key, upload URL, media upload, Preview/Production environment variable, database row, playback flag, or Production resource was created or changed.
+**Phase 5.38 result: PLAN PREPARED; 60-MINUTE DURATION, US$5/US$10 ALERT VALUES AND OWNER-EXECUTED PRIMARY PAYMENT-METHOD ADDITION ARE APPROVED. THE DASHBOARD SHOWS WORKERS FREE ACTIVE AND NO PAYMENT METHOD ON FILE; NO STREAM SUBSCRIPTION IS SHOWN. THE PRIMARY PAYMENT METHOD HAS NOT YET BEEN ADDED OR VERIFIED. PAID STREAM BILLING SETUP REMAINS BLOCKED UNTIL THE OWNER COMPLETES THE BILLING PROFILE AND STREAM ELIGIBILITY IS CONFIRMED. OPERATIONAL EXECUTION ALSO REQUIRES RESOURCE, RECIPIENT, START-TIME AND CREDENTIAL APPROVALS.** This checkpoint is documentation-only. No Cloudflare account/resource, paid subscription, payment method, API token, signing key, upload URL, media upload, Preview/Production environment variable, database row, playback flag, or Production resource was created or changed.
 
 The cost-model approval, restricted internal test-scope approval, 60-minute test-window duration approval and US$5/US$10 alert-value approval are recorded. These approvals do not substitute for the outstanding operational approvals listed above.
