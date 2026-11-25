@@ -10,6 +10,7 @@ const password = "NexaFilm-Customer-Journey-2026!";
 const slug = `customer-journey-${suffix}`;
 let isolatedDatabaseValidated = false;
 let movieId: string | null = null;
+let genreId: string | null = null;
 let userId: string | null = null;
 
 function requireIsolatedTestDatabase() {
@@ -49,6 +50,12 @@ test.beforeAll(async () => {
   });
   userId = user.id;
 
+  const genre = await prisma.genre.create({
+    data: { name: `Journey Drama ${suffix}`, slug: `journey-drama-${suffix}` },
+    select: { id: true },
+  });
+  genreId = genre.id;
+
   const movie = await prisma.movie.create({
     data: {
       titleEn: "NexaFilm Customer Journey Test",
@@ -67,6 +74,7 @@ test.beforeAll(async () => {
       isPublished: true,
       contentStatus: ContentStatus.PUBLISHED,
       allowedCountries: ["IN"],
+      genres: { create: { genre: { connect: { id: genre.id } } } },
       license: {
         create: {
           owner: "NexaFilm isolated E2E rights fixture",
@@ -85,6 +93,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   if (isolatedDatabaseValidated) {
     if (movieId) await prisma.movie.deleteMany({ where: { id: movieId } });
+    if (genreId) await prisma.genre.deleteMany({ where: { id: genreId } });
     if (userId) await prisma.user.deleteMany({ where: { id: userId } });
   }
   await prisma.$disconnect();
@@ -160,8 +169,40 @@ test("customer can navigate the legal catalogue, account library, settings and p
   await page.getByRole("link", { name: "Explore the Catalogue" }).click();
   await expect(page).toHaveURL(/\/movies$/);
   await expect(page.getByRole("heading", { name: "Explore movies" })).toBeVisible();
-  await expect(page.getByPlaceholder("Search movie, title or description...")).toBeVisible();
+  const searchBox = page.getByPlaceholder("Search movie, title or description...");
+  await expect(searchBox).toBeVisible();
   const movieCard = page.locator(`a[href="/movies/${slug}"]`);
+  await expect(movieCard).toBeVisible();
+
+  // Multiple keystrokes inside the debounce window should produce one API request.
+  const catalogueRequests: string[] = [];
+  const onCatalogueRequest = (request: { url(): string }) => {
+    const url = new URL(request.url());
+    if (url.pathname === "/api/movies") catalogueRequests.push(url.searchParams.get("search") ?? "");
+  };
+  page.on("request", onCatalogueRequest);
+  await searchBox.fill("N");
+  await searchBox.fill("Ne");
+  await searchBox.fill("Nex");
+  await page.waitForTimeout(350);
+  page.off("request", onCatalogueRequest);
+  expect(catalogueRequests).toEqual(["Nex"]);
+  await expect(movieCard).toBeVisible();
+
+  // Search, language, and genre filters combine within the licensed catalogue.
+  await searchBox.fill("NexaFilm Customer Journey Test");
+  await page.getByRole("combobox", { name: "Filter by language" }).selectOption("ta");
+  await page.getByRole("combobox", { name: "Filter by genre" }).selectOption(`journey-drama-${suffix}`);
+  await expect(movieCard).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Showing 1 movies");
+
+  // An English filter has no eligible match in this isolated fixture.
+  await page.getByRole("combobox", { name: "Filter by language" }).selectOption("en");
+  await expect(page.getByRole("heading", { name: "No movies found" })).toBeVisible();
+  await page.getByRole("button", { name: "Clear filters" }).first().click();
+  await expect(page.getByRole("combobox", { name: "Filter by language" })).toHaveValue("all");
+  await expect(page.getByRole("combobox", { name: "Filter by genre" })).toHaveValue("all");
+  await expect(searchBox).toHaveValue("");
   await expect(movieCard).toBeVisible();
   await movieCard.click();
 
