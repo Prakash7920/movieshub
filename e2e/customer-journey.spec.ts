@@ -120,7 +120,7 @@ test("catalogue ignores stale search responses and exposes loading state", async
     if (search === "old") {
       // Keep the earlier response pending long enough for the newer query to finish first.
       await new Promise((resolve) => setTimeout(resolve, 1200));
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ movies: [movie("old-result", "Old result")], genres: [{ name: "Drama", slug: "drama" }] }) });
+      try { await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ movies: [movie("old-result", "Old result")], genres: [{ name: "Drama", slug: "drama" }] }) }); } catch { /* The client intentionally aborts this stale request. */ }
       return;
     }
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ movies: [movie("new-result", "New result")], genres: [{ name: "Drama", slug: "drama" }] }) });
@@ -130,7 +130,7 @@ test("catalogue ignores stale search responses and exposes loading state", async
   const searchBox = page.getByPlaceholder("Search movie, title or description...");
   await searchBox.fill("old");
   await page.waitForTimeout(300);
-  await expect(page.getByText("Loading movies...", { exact: true })).toBeVisible();
+  await expect(page.getByText("Loading catalogue...", { exact: true })).toBeVisible();
   await searchBox.fill("new");
   await expect(page.getByRole("heading", { name: "New result" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Old result" })).toBeHidden();
