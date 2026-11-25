@@ -10,6 +10,15 @@ on:
       - 'prisma/schema.prisma'
       - 'package.json'
       - 'package-lock.json'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/prisma-fresh-migration-validation.yml'
+      - 'prisma/migrations/**'
+      - 'prisma/schema.prisma'
+      - 'package.json'
+      - 'package-lock.json'
   workflow_dispatch:
 
 permissions:
@@ -21,7 +30,9 @@ concurrency:
 
 jobs:
   migrate-empty-postgres:
-    if: github.ref == 'refs/heads/phase-5/consolidated-security-ops'
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/phase-5/consolidated-security-ops') ||
+      (github.event_name == 'pull_request' && github.head_ref == 'phase-5/consolidated-security-ops')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
