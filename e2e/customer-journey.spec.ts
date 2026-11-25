@@ -145,6 +145,23 @@ test("customer can navigate the legal catalogue, account library, settings and p
   await page.goto("/categories");
   await expect(page).toHaveURL(/\/movies$/);
 
+  // Verify a recoverable catalogue service-error state.
+  let catalogueAttempts = 0;
+  await page.route("**/api/movies*", async (route) => {
+    catalogueAttempts += 1;
+    if (catalogueAttempts === 1) {
+      await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Temporary catalogue test failure." }) });
+      return;
+    }
+    await route.continue();
+  });
+  await page.goto("/movies");
+  await expect(page.getByRole("alert")).toContainText("catalogue. Please try again.");
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(page.locator('a[href="/movies/' + slug + '"]')).toBeVisible();
+  await page.unroute("**/api/movies*");
+  expect(catalogueAttempts).toBe(2);
+
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/auth\/login/);
 
@@ -267,7 +284,12 @@ test("customer can navigate the legal catalogue, account library, settings and p
   await page.goto("/movies");
   await page.getByRole("combobox", { name: "Select language" }).selectOption("ta");
   await expect(page.locator("html")).toHaveAttribute("lang", "ta");
+  await expect(page.getByPlaceholder("திரைப்படம், தலைப்பு அல்லது விவரத்தைத் தேடுங்கள்...")).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "மொழி அடிப்படையில் வடிகட்டு" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "திரைப்பட வகை அடிப்படையில் வடிகட்டு" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "மொழி அடிப்படையில் வடிகட்டு" }).locator("option", { hasText: "தமிழ்" })).toHaveAttribute("value", "ta");
   await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator(`a[href="/movies/${slug}"]`)).toBeVisible();
   await page.locator(`a[href="/movies/${slug}"]`).click();
   await expect(page.getByText("திரைப்பட விவரங்கள்", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /திரைப்படங்களுக்குத் திரும்பு/ })).toBeVisible();
