@@ -11,7 +11,7 @@ CREATE INDEX "License_reviewedByUserId_idx"
 ALTER TABLE "License"
   ADD CONSTRAINT "License_reviewedByUserId_fkey"
   FOREIGN KEY ("reviewedByUserId") REFERENCES "User"("id")
-  ON DELETE SET NULL ON UPDATE CASCADE;
+  ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "License"
   ADD CONSTRAINT "License_evidenceSha256_format_check"
