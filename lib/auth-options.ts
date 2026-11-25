@@ -30,8 +30,7 @@ export const authOptions: NextAuthOptions = {
         if (!emailLimit.allowed || !ipLimit.allowed) return null;
       } catch { return null; }
       const user = await prisma.user.findUnique({ where: { email } });
-      if (!user || user.isBanned || !user.passwordHash) return null;
-      if (process.env.REQUIRE_EMAIL_VERIFICATION === "true" && !user.isEmailVerified) return null;
+      if (!user || user.isBanned || !user.passwordHash || !user.isEmailVerified) return null;
       if (!(await bcrypt.compare(password, user.passwordHash))) return null;
       return { id: user.id, name: user.name, email: user.email, image: user.avatarUrl };
     },
@@ -66,7 +65,7 @@ export const authOptions: NextAuthOptions = {
           select: { passwordChangedAt: true, isBanned: true, isEmailVerified: true },
         });
         if (!account || account.isBanned ||
-          (process.env.REQUIRE_EMAIL_VERIFICATION === "true" && !account.isEmailVerified) ||
+          !account.isEmailVerified ||
           (account.passwordChangedAt && token.iat * 1000 < account.passwordChangedAt.getTime())) delete token.sub;
       }
       return token;
