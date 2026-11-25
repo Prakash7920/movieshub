@@ -147,6 +147,11 @@ test("customer can navigate the legal catalogue, account library, settings and p
 
   // Guest mobile navigation: primary destinations are reachable without a desktop nav.
   await page.goto("/");
+  await expect(page.getByRole("link", { name: "Explore the Catalogue" })).toHaveAttribute("href", "/movies");
+  await expect(page.getByRole("link", { name: "Create Account" })).toHaveAttribute("href", "/auth/register");
+  await page.getByRole("link", { name: "Create Account" }).click();
+  await expect(page).toHaveURL(/\\/auth\\/register$/);
+  await page.goto("/");
   const openMenu = page.getByRole("button", { name: "Open navigation menu" });
   await expect(openMenu).toHaveAttribute("aria-expanded", "false");
   await openMenu.click();
@@ -154,7 +159,8 @@ test("customer can navigate the legal catalogue, account library, settings and p
   await expect(mobileNav).toBeVisible();
   await expect(mobileNav.getByRole("link", { name: "Movies" })).toBeVisible();
   await expect(mobileNav.getByRole("link", { name: "AI Picks" })).toBeVisible();
-  await mobileNav.getByRole("link", { name: "Movies" }).click();
+  await mobileNav.getByRole("link", { name: "Movies" }).focus();
+  await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/movies$/);
   await expect(page.getByRole("button", { name: "Open navigation menu" })).toHaveAttribute("aria-expanded", "false");
 
@@ -220,9 +226,11 @@ test("customer can navigate the legal catalogue, account library, settings and p
   const signedInMobileNav = page.getByRole("navigation", { name: "Mobile primary navigation" });
   await expect(signedInMobileNav.getByRole("link", { name: "Dashboard" })).toBeVisible();
   await expect(signedInMobileNav.getByRole("link", { name: "Admin" })).toBeVisible();
+  await signedInMobileNav.getByRole("link", { name: "Dashboard" }).focus();
   await page.keyboard.press("Escape");
   await expect(signedInMobileNav).toBeHidden();
-  await expect(page.getByRole("button", { name: "Open navigation menu" })).toHaveAttribute("aria-expanded", "false");
+  await expect(openMenu).toHaveAttribute("aria-expanded", "false");
+  await expect(openMenu).toBeFocused();
 
   await page.goto("/");
   await page.getByRole("link", { name: "Explore the Catalogue" }).click();
@@ -299,6 +307,10 @@ test("customer can navigate the legal catalogue, account library, settings and p
 
   await page.goto("/subscription");
   await expect(page.getByRole("heading", { name: "Choose your NexaFilm plan" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Payments are not enabled" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Premium checkout coming soon" })).toBeDisabled();
+  await page.getByRole("button", { name: "Create a free account", exact: true }).click();
+  await expect(page).toHaveURL(/\\/auth\\/register$/);
   await page.goto("/subscription/success");
   await expect(page.getByRole("heading", { name: "Check your subscription status" })).toBeVisible();
   await page.goto("/subscription/failure");

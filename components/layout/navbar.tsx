@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -23,6 +23,7 @@ export function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,7 +49,10 @@ export function Navbar() {
     if (!isMobileMenuOpen) return;
 
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsMobileMenuOpen(false);
+      if (event.key === "Escape") {
+        setIsMobileMenuOpen(false);
+        mobileMenuButtonRef.current?.focus();
+      }
     };
 
     window.addEventListener("keydown", closeOnEscape);
@@ -104,6 +108,7 @@ export function Navbar() {
 
         <div className="flex shrink-0 items-center gap-1 sm:gap-3">
           <button
+            ref={mobileMenuButtonRef}
             type="button"
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:border-red-400 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 md:hidden"
             aria-label={isMobileMenuOpen ? t.closeNavigationMenu : t.openNavigationMenu}
