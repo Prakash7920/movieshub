@@ -1,4 +1,7 @@
 ALTER TABLE "License"
+  ALTER COLUMN "status" SET DEFAULT 'PENDING';
+
+ALTER TABLE "License"
   ADD COLUMN "evidenceReference" VARCHAR(300),
   ADD COLUMN "evidenceSha256" CHAR(64),
   ADD COLUMN "rightsScopeConfirmed" BOOLEAN NOT NULL DEFAULT FALSE,
