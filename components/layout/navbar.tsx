@@ -61,7 +61,7 @@ export function Navbar() {
     try {
       const response = await fetch("/api/auth/revoke-session", { method: "POST", cache: "no-store" });
       if (!response.ok && response.status !== 401) {
-        throw new Error("Secure logout could not be completed.");
+        throw new Error(t.secureLogoutFailed);
       }
 
       // Do not let NextAuth resolve "/" against a stale canonical NEXTAUTH_URL.
@@ -70,17 +70,17 @@ export function Navbar() {
       window.location.assign("/");
     } catch {
       setIsSigningOut(false);
-      setLogoutError("Secure logout could not be completed. Please try again.");
+      setLogoutError(t.secureLogoutFailed);
     }
   };
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/60 backdrop-blur-xl">
       <div className="page-shell flex items-center justify-between gap-4 py-4">
-        <Link href="/" aria-label="NexaFilm home" className="flex items-center">
+        <Link href="/" aria-label={t.homeLogoAccessibleName} className="flex items-center">
           <Image
             src="/nexafilm-logo.svg"
-            alt="NexaFilm — One Platform. Every Language. Endless Stories."
+            alt={t.homeLogoAccessibleName}
             width={210}
             height={53}
             priority
@@ -88,7 +88,7 @@ export function Navbar() {
           />
         </Link>
 
-        <nav aria-label="Primary navigation" className="hidden items-center gap-2 md:flex">
+        <nav aria-label={t.primaryNavigation} className="hidden items-center gap-2 md:flex">
           {navItems.map(({ href, labelKey, icon: Icon }) => (
             <Link
               key={href}
@@ -106,7 +106,7 @@ export function Navbar() {
           <button
             type="button"
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:border-red-400 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 md:hidden"
-            aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-label={isMobileMenuOpen ? t.closeNavigationMenu : t.openNavigationMenu}
             aria-controls="mobile-primary-navigation"
             aria-expanded={isMobileMenuOpen}
             onClick={() => setIsMobileMenuOpen((open) => !open)}
@@ -137,7 +137,7 @@ export function Navbar() {
 
       <nav
         id="mobile-primary-navigation"
-        aria-label="Mobile primary navigation"
+        aria-label={t.mobilePrimaryNavigation}
         hidden={!isMobileMenuOpen}
         className="page-shell border-t border-white/10 pb-4 pt-3 md:hidden"
       >
