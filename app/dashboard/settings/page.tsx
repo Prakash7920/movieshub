@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
-import { ArrowLeft, UserRound } from "lucide-react";
+import { ArrowLeft, UserRound, LockKeyhole } from "lucide-react";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
 import { AccountSettingsForm } from "@/components/dashboard/account-settings-form";
+import { ChangePasswordForm } from "@/components/dashboard/change-password-form";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,6 +20,7 @@ export default async function AccountSettingsPage() {
     select: {
       name: true,
       email: true,
+      provider: true,
       isEmailVerified: true,
       profiles: {
         orderBy: { createdAt: "asc" },
@@ -49,18 +51,45 @@ export default async function AccountSettingsPage() {
         </Link>
       </div>
 
-      <section className="mx-auto max-w-2xl rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7" aria-labelledby="account-settings-heading">
-        <div className="mb-6">
-          <h2 id="account-settings-heading" className="text-xl font-semibold text-white">Profile details</h2>
-          <p className="mt-2 text-sm leading-6 text-gray-400">Your email address is read-only here. Display name and language preference are saved securely to your account.</p>
-        </div>
-        <AccountSettingsForm
-          initialDisplayName={profile?.displayName ?? user.name ?? ""}
-          email={user.email}
-          isEmailVerified={user.isEmailVerified}
-          initialLanguagePreference={initialLanguagePreference}
-        />
-      </section>
+      <div className="mx-auto grid max-w-2xl gap-6">
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7" aria-labelledby="account-settings-heading">
+          <div className="mb-6">
+            <h2 id="account-settings-heading" className="text-xl font-semibold text-white">Profile details</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-400">Your email address is read-only here. Display name and language preference are saved securely to your account.</p>
+          </div>
+          <AccountSettingsForm
+            initialDisplayName={profile?.displayName ?? user.name ?? ""}
+            email={user.email}
+            isEmailVerified={user.isEmailVerified}
+            initialLanguagePreference={initialLanguagePreference}
+          />
+        </section>
+
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7" aria-labelledby="change-password-heading">
+          <div className="mb-6 flex items-start gap-3">
+            <span className="inline-flex rounded-xl border border-white/10 bg-black/20 p-3 text-red-200">
+              <LockKeyhole className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 id="change-password-heading" className="text-xl font-semibold text-white">Change password</h2>
+              <p className="mt-2 text-sm leading-6 text-gray-400">
+                Update the password for your account. Existing sessions are invalidated and you will be asked to sign in again.
+              </p>
+            </div>
+          </div>
+
+          {user.provider === "CREDENTIALS" ? (
+            <>
+              <ChangePasswordForm />
+              <p className="mt-4 text-xs text-gray-500">
+                Forgot your current password? <Link href="/auth/forgot-password" className="underline underline-offset-2 hover:text-white">Reset it by email</Link>.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-gray-400">Your password is managed by your sign-in provider.</p>
+          )}
+        </section>
+      </div>
     </main>
   );
 }

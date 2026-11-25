@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 const password = "NexaFilm-Settings-Test-Password-2026!";
+const changedPassword = "NexaFilm-Changed-Password-2026!";
 let isolatedDatabaseValidated = false;
 
 function requireIsolatedTestDatabase() {
@@ -101,4 +102,37 @@ test("customer can update account settings and sync the saved language to a fres
   } finally {
     await secondContext.close();
   }
+
+  // Password changes are available from Settings, verify the current credential,
+  // and force a fresh sign-in for this and every other session.
+  await page.goto("/dashboard/settings");
+  await expect(page.getByRole("heading", { name: "Change password" })).toBeVisible();
+  await page.getByLabel("Current password").fill("Wrong-Current-Password-2026!");
+  await page.getByLabel("New password").fill(changedPassword);
+  await page.getByLabel("Confirm new password").fill(changedPassword);
+  await page.getByRole("button", { name: "Update password" }).click();
+  await expect(page.getByRole("alert")).toContainText("Current password is incorrect.");
+
+  await page.getByLabel("Current password").fill(password);
+  await page.getByLabel("New password").fill(changedPassword);
+  await page.getByLabel("Confirm new password").fill(changedPassword);
+  await page.getByRole("button", { name: "Update password" }).click();
+  await expect(page).toHaveURL(/\/auth\/login\?passwordChanged=1/);
+  await expect(page.getByRole("status")).toContainText("Password updated. Please sign in with your new password.");
+
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(password);
+  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Email or password is incorrect");
+
+  await page.locator('input[type="password"]').fill(changedPassword);
+  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await expect(page).toHaveURL(/dashboard/);
+
+  const finalUser = await prisma.user.findUnique({
+    where: { email },
+    select: { passwordHash: true, passwordChangedAt: true },
+  });
+  expect(finalUser?.passwordChangedAt).not.toBeNull();
+  expect(finalUser?.passwordHash).not.toBe(passwordHash);
 });

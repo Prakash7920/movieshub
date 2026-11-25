@@ -16,6 +16,7 @@ export function LoginForm() {
   const { refreshLanguagePreference } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
+  const passwordChanged = searchParams.get("passwordChanged") === "1";
 
   const {
     register,
@@ -62,6 +63,12 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {passwordChanged ? (
+        <p role="status" aria-live="polite" className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          Password updated. Please sign in with your new password.
+        </p>
+      ) : null}
+
       <div>
         <label className="mb-2 block text-sm text-gray-300">Email</label>
         <input
