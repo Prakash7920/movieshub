@@ -6,10 +6,21 @@ import { prisma } from "../lib/prisma";
 
 const suffix = randomUUID();
 const webhookSecret = "ci-only-razorpay-webhook-secret-value";
-const eventIds = [`evt-captured-${suffix}`, `evt-mismatch-${suffix}`];
+const eventIds = [
+  `evt-captured-${suffix}`,
+  `evt-mismatch-${suffix}`,
+  `evt-failed-valid-${suffix}`,
+  `evt-failed-amount-${suffix}`,
+  `evt-failed-currency-${suffix}`,
+  `evt-failed-status-${suffix}`,
+];
 let userId: string | null = null;
 let paymentId: string | null = null;
 let mismatchPaymentId: string | null = null;
+let failedPaymentId: string | null = null;
+let failedAmountPaymentId: string | null = null;
+let failedCurrencyPaymentId: string | null = null;
+let failedStatusPaymentId: string | null = null;
 const previousSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
 function webhookRequest(eventId: string, event: string, entity: Record<string, unknown>, signatureOverride?: string) {
@@ -44,6 +55,27 @@ before(async () => {
     select: { id: true },
   });
   mismatchPaymentId = mismatch.id;
+
+  const failedFixtures = await Promise.all(
+    ["valid", "amount", "currency", "status"].map((label) =>
+      prisma.payment.create({
+        data: {
+          userId: userId!,
+          amount: 299,
+          currency: "INR",
+          provider: "razorpay",
+          status: "PENDING",
+          plan: "PREMIUM",
+          billingCycle: "MONTHLY",
+          requestKey: `request-failed-${label}-${suffix}`,
+          razorpayOrderId: `order-failed-${label}-${suffix}`,
+        },
+        select: { id: true },
+      }),
+    ),
+  );
+  [failedPaymentId, failedAmountPaymentId, failedCurrencyPaymentId, failedStatusPaymentId] =
+    failedFixtures.map((fixture) => fixture.id);
 });
 
 after(async () => {
@@ -95,5 +127,82 @@ test("Razorpay webhook amount mismatch is durably flagged and never grants Premi
   assert.equal(payment?.subscriptionId, null);
   const event = await prisma.paymentWebhookEvent.findUnique({ where: { eventId: eventIds[1] }, select: { processingStatus: true } });
   assert.equal(event?.processingStatus, "REVIEW");
+  assert.equal(await prisma.subscription.count({ where: { userId: userId! } }), 1);
+});
+
+
+test("Razorpay failed webhook validates the matching order and marks only the pending payment failed", async () => {
+  const entity = {
+    id: `pay-failed-valid-${suffix}`,
+    order_id: `order-failed-valid-${suffix}`,
+    amount: 29900,
+    currency: "INR",
+    status: "failed",
+  };
+  const response = await razorpayWebhook(webhookRequest(eventIds[2], "payment.failed", entity));
+  assert.equal(response.status, 200, await response.clone().text());
+
+  const receipt = await prisma.paymentWebhookEvent.findUnique({
+    where: { eventId: eventIds[2] },
+    select: { processingStatus: true, razorpayOrderId: true, gatewayPaymentId: true },
+  });
+  assert.equal(receipt?.processingStatus, "PROCESSED");
+  assert.equal(receipt?.razorpayOrderId, entity.order_id);
+  assert.equal(receipt?.gatewayPaymentId, entity.id);
+
+  const payment = await prisma.payment.findUnique({
+    where: { id: failedPaymentId! },
+    select: { status: true, transactionId: true, subscriptionId: true },
+  });
+  assert.equal(payment?.status, "FAILED");
+  assert.equal(payment?.transactionId, entity.id);
+  assert.equal(payment?.subscriptionId, null);
+  assert.equal(await prisma.subscription.count({ where: { userId: userId! } }), 1);
+});
+
+test("Razorpay failed webhook amount, currency, and status mismatches remain REVIEW without changing payment state", async () => {
+  const cases = [
+    {
+      eventIndex: 3,
+      paymentId: failedAmountPaymentId!,
+      orderId: `order-failed-amount-${suffix}`,
+      entity: { id: `pay-failed-amount-${suffix}`, amount: 100, currency: "INR", status: "failed" },
+    },
+    {
+      eventIndex: 4,
+      paymentId: failedCurrencyPaymentId!,
+      orderId: `order-failed-currency-${suffix}`,
+      entity: { id: `pay-failed-currency-${suffix}`, amount: 29900, currency: "USD", status: "failed" },
+    },
+    {
+      eventIndex: 5,
+      paymentId: failedStatusPaymentId!,
+      orderId: `order-failed-status-${suffix}`,
+      entity: { id: `pay-failed-status-${suffix}`, amount: 29900, currency: "INR", status: "captured" },
+    },
+  ];
+
+  for (const item of cases) {
+    const response = await razorpayWebhook(webhookRequest(eventIds[item.eventIndex], "payment.failed", {
+      ...item.entity,
+      order_id: item.orderId,
+    }));
+    assert.equal(response.status, 200, await response.clone().text());
+
+    const receipt = await prisma.paymentWebhookEvent.findUnique({
+      where: { eventId: eventIds[item.eventIndex] },
+      select: { processingStatus: true },
+    });
+    assert.equal(receipt?.processingStatus, "REVIEW");
+
+    const payment = await prisma.payment.findUnique({
+      where: { id: item.paymentId },
+      select: { status: true, transactionId: true, subscriptionId: true },
+    });
+    assert.equal(payment?.status, "PENDING");
+    assert.equal(payment?.transactionId, null);
+    assert.equal(payment?.subscriptionId, null);
+  }
+
   assert.equal(await prisma.subscription.count({ where: { userId: userId! } }), 1);
 });

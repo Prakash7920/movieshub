@@ -230,8 +230,26 @@ export async function acceptRazorpayWebhook(input: { eventId: string; event: str
             data: { status: PaymentStatus.PAID, transactionId: gatewayPaymentId, subscriptionId: subscription.id },
           });
         }
-      } else if (payment.status === PaymentStatus.PENDING) {
-        await tx.payment.update({ where: { id: payment.id }, data: { status: PaymentStatus.FAILED, transactionId: gatewayPaymentId } });
+      } else if (input.event === "payment.failed") {
+        const amount = entity?.amount;
+        if (
+          amount !== Math.round(payment.amount * 100) ||
+          entity?.currency !== payment.currency ||
+          entity?.status !== "failed"
+        ) {
+          await tx.paymentWebhookEvent.update({
+            where: { id: eventRecord.id },
+            data: { processingStatus: "REVIEW", processedAt: new Date() },
+          });
+          return;
+        }
+
+        if (payment.status === PaymentStatus.PENDING) {
+          await tx.payment.update({
+            where: { id: payment.id },
+            data: { status: PaymentStatus.FAILED, transactionId: gatewayPaymentId },
+          });
+        }
       }
 
       await tx.paymentWebhookEvent.update({ where: { id: eventRecord.id }, data: { processingStatus: "PROCESSED", processedAt: new Date() } });
