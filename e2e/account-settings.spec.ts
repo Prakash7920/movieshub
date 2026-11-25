@@ -92,6 +92,8 @@ test("customer can update account settings and sync the saved language to a fres
   });
   try {
     const secondPage = await secondContext.newPage();
+    // The watchlist endpoint correctly fails closed without a verified viewer country.
+    await secondPage.setExtraHTTPHeaders({ "x-vercel-ip-country": "IN" });
     await secondPage.goto("/auth/login");
     await secondPage.locator('input[type="email"]').fill(email);
     await secondPage.locator('input[type="password"]').fill(password);
