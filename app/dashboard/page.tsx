@@ -44,7 +44,7 @@ export default async function DashboardPage() {
               {entitlements
                 ? entitlements.isPremium
                   ? "Your account currently has Premium entitlements. Secure streaming and downloads are not enabled yet."
-                  : "You are on the Free plan. Premium checkout is not available yet, and no payment has been taken."
+                  : "You are on the Free plan. No active Premium entitlement is recorded for this account. View plans to see what checkout is enabled in this environment."
                 : sessionUser?.id
                   ? "We couldn't load your plan right now. Please refresh the page later."
                   : "Your plan details are private to your signed-in account."}
@@ -76,7 +76,7 @@ export default async function DashboardPage() {
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <DashboardCard href="/dashboard/watchlist" icon={<Bookmark className="h-5 w-5" />} title="My Watchlist" description="View and manage the movies you saved." />
         <DashboardCard href="/dashboard/history" icon={<History className="h-5 w-5" />} title="Watch History" description="View your saved history entries and preview progress." />
-        <DashboardCard href="/dashboard/settings" icon={<Settings2 className="h-5 w-5" />} title="Settings" description="Account settings are a preview in this version." />
+        <DashboardCard href="/dashboard/settings" icon={<Settings2 className="h-5 w-5" />} title="Settings" description="Manage your account name and preferred language." />
       </div>
       <section className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -88,16 +88,21 @@ export default async function DashboardPage() {
         </div>
         <WatchlistContent />
       </section>
-      <p className="mt-6 text-xs leading-5 text-gray-500">Subscription information is loaded securely for your signed-in account. Payments, streaming, and secure video access remain disabled until the required backend and content rights are verified.</p>
+      <p className="mt-6 text-xs leading-5 text-gray-500">Subscription information is loaded securely for your signed-in account. Payments, streaming, and secure video access remain limited by the current Preview release gates.</p>
     </div>
   );
 }
 
-function DashboardCard({ href, icon, title, description }: { href: string; icon: React.ReactNode; title: string; description: string }) {
+function DashboardCard({ href, icon, title, description }: {
+  href: string;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
   return (
-    <Link href={href} className="rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-red-500/40 hover:bg-white/[0.07]">
-      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 text-red-200">{icon}</div>
-      <h2 className="font-semibold text-white">{title}</h2>
+    <Link href={href} className="group rounded-3xl border border-white/10 bg-white/5 p-5 transition hover:border-red-500/40 hover:bg-white/[0.07]">
+      <span className="inline-flex rounded-xl border border-white/10 bg-black/20 p-3 text-red-200">{icon}</span>
+      <h2 className="mt-4 text-lg font-semibold text-white">{title}</h2>
       <p className="mt-2 text-sm leading-6 text-gray-400">{description}</p>
     </Link>
   );

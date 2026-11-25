@@ -9,7 +9,7 @@ export default function WatchlistPage() {
         <div>
           <p className="text-sm uppercase tracking-[0.2em] text-red-200">Your library</p>
           <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl">My Watchlist</h1>
-          <p className="mt-2 text-sm text-gray-400">Movies you save on this device.</p>
+          <p className="mt-2 text-sm text-gray-400">Movies you save to your NexaFilm account.</p>
         </div>
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-white">
           <ArrowLeft className="h-4 w-4" /> Back to dashboard
