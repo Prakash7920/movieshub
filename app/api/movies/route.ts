@@ -4,7 +4,7 @@ import { getVercelViewerCountry } from "@/lib/licensing/territory";
 
 export const runtime = "nodejs";
 
-const SUPPORTED_LANGUAGE_CODES = new Set(["ta", "en", "te", "ml", "kn", "hi", "bn", "mr"]);
+const SUPPORTED_LANGUAGE_CODES = new Set(["all", "ta", "en", "te", "ml", "kn", "hi", "bn", "mr"]);
 const INVALID_FILTER_HEADERS = { "Cache-Control": "private, no-store" };
 
 export async function GET(request: Request) {
