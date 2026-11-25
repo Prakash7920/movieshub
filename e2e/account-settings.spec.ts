@@ -36,7 +36,7 @@ test.afterAll(async () => {
   await prisma.$disconnect();
 });
 
-test("customer can update and reload account settings on mobile", async ({ page }) => {
+test("customer can update account settings and sync the saved language to a fresh browser", async ({ page, browser }) => {
   const email = `settings-${Date.now()}@nexafilm-settings-e2e.test`;
   const passwordHash = await bcrypt.hash(password, 4);
   await prisma.user.create({
@@ -83,4 +83,22 @@ test("customer can update and reload account settings on mobile", async ({ page 
   });
   expect(saved?.name).toBe("Tamil Cinema Fan");
   expect(saved?.profiles).toEqual([{ displayName: "Tamil Cinema Fan", languagePreference: "ta" }]);
+
+  // New browser context: no localStorage or cookies from the first context.
+  const secondContext = await browser.newContext({
+    baseURL: "http://127.0.0.1:3000",
+    viewport: { width: 1280, height: 900 },
+  });
+  try {
+    const secondPage = await secondContext.newPage();
+    await secondPage.goto("/auth/login");
+    await secondPage.locator('input[type="email"]').fill(email);
+    await secondPage.locator('input[type="password"]').fill(password);
+    await secondPage.getByRole("button", { name: "Login", exact: true }).click();
+    await expect(secondPage).toHaveURL(/dashboard/);
+    await expect(secondPage.locator("html")).toHaveAttribute("lang", "ta");
+    await expect(secondPage.getByRole("link", { name: /திரைப்படங்கள்/ })).toBeVisible();
+  } finally {
+    await secondContext.close();
+  }
 });

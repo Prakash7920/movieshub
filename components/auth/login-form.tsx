@@ -8,10 +8,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { loginSchema } from "@/lib/validations/auth";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/components/providers/language-provider";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refreshLanguagePreference } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
 
@@ -38,6 +40,10 @@ export function LoginForm() {
         setServerError("Email or password is incorrect. Please check your details and try again.");
         return;
       }
+
+      // Load the saved account preference after NextAuth has set the session
+      // cookie, including when login happens inside an already-mounted layout.
+      await refreshLanguagePreference();
 
       const requestedPath = searchParams.get("callbackUrl");
       const destination =
@@ -86,11 +92,7 @@ export function LoginForm() {
         </p>
       )}
 
-      <Button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full bg-red-600 hover:bg-red-500"
-      >
+      <Button type="submit" disabled={isSubmitting} className="w-full bg-red-600 hover:bg-red-500">
         {isSubmitting ? "Logging in..." : "Login"}
       </Button>
     </form>
