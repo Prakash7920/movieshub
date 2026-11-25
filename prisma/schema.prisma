@@ -89,6 +89,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
   revokedSessionTokens RevokedSessionToken[]
+  reviewedLicenses      License[] @relation("LicenseReviewedBy")
 
   @@index([email])
   @@index([role])
@@ -334,11 +335,18 @@ model License {
   allowedCountries String[]
   downloadAllowed Boolean @default(false)
   notes String?
+  evidenceReference String? @db.VarChar(300)
+  evidenceSha256 String? @db.Char(64)
+  rightsScopeConfirmed Boolean @default(false)
+  reviewedAt DateTime?
+  reviewedByUserId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  reviewedByUser User? @relation("LicenseReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
   @@index([status])
   @@index([expiryDate])
+  @@index([reviewedByUserId])
 }
 model Review {
   id String @id @default(cuid())
