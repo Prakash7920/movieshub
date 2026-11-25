@@ -155,7 +155,6 @@ export default function AdminLicenses() {
   }
 
   const input = "w-full rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-sm text-white";
-  const selected = movies.find(movie => movie.id === form.movieId);
 
   return (
     <section className="page-shell pb-10">
