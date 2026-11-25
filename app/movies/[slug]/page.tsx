@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getVercelViewerCountry } from "@/lib/licensing/territory";
 import { WatchlistToggle } from "@/components/movies/watchlist";
 import { AddHistoryPreview } from "@/components/movies/watch-history";
+import { MovieDetailCopy } from "@/components/movies/movie-detail-copy";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -50,23 +51,23 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
     },
   });
   if (!movie) notFound();
-  const genreNames = movie.genres.map((item) => item.genre.name).join(", ") || "Uncategorised";
+  const genreNames = movie.genres.map((item) => item.genre.name).join(", ");
 
   return (
     <div className="page-shell pb-16 pt-8">
-      <Link href="/movies" className="text-sm text-gray-300 hover:text-white">← Back to movies</Link>
+      <Link href="/movies" className="text-sm text-gray-300 hover:text-white">← <MovieDetailCopy part="back" /></Link>
       <section className="mt-6 grid gap-8 rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7 md:grid-cols-[minmax(220px,280px)_1fr] md:p-10">
         <div className="relative mx-auto aspect-[2/3] w-full max-w-[280px] overflow-hidden rounded-2xl"><Image src={movie.posterUrl} alt={movie.titleEn} fill unoptimized sizes="(max-width: 768px) 80vw, 280px" className="object-cover" /></div>
         <div className="flex flex-col justify-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-300">Catalogue metadata</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-300"><MovieDetailCopy part="eyebrow" /></p>
           <h1 className="mt-3 text-3xl font-bold text-white md:text-5xl">{movie.titleEn}</h1>
           <p className="mt-2 text-lg text-gray-300">{movie.titleTa}</p>
           <p className="mt-5 max-w-2xl text-sm leading-7 text-gray-300 sm:text-base">{movie.descriptionEn}</p>
-          <div className="mt-5 flex flex-wrap gap-3 text-sm text-gray-300"><span>{movie.releaseYear}</span><span>•</span><span>{genreNames}</span><span>•</span><span>{movie.runtimeMinutes} min</span><span>•</span><span>{movie.rating}/10</span></div>
-          <p className="mt-4 text-xs text-gray-400">Audio: {movie.audioLanguages.join(", ")} · Subtitles: {movie.subtitleLanguages.join(", ")}</p>
+          <div className="mt-5 flex flex-wrap gap-3 text-sm text-gray-300"><span>{movie.releaseYear}</span><span>•</span><span><MovieDetailCopy part="genre" value={genreNames} /></span><span>•</span><span>{movie.runtimeMinutes} min</span><span>•</span><span>{movie.rating}/10</span></div>
+          <p className="mt-4 text-xs text-gray-400"><MovieDetailCopy part="languages" audioLanguages={movie.audioLanguages} subtitleLanguages={movie.subtitleLanguages} /></p>
           <WatchlistToggle slug={movie.slug} />
           <AddHistoryPreview slug={movie.slug} />
-          <div className="mt-6 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-100">Playback is disabled in this preview until distribution rights and secure video access are verified.</div>
+          <div className="mt-6 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-100"><MovieDetailCopy part="playback" /></div>
         </div>
       </section>
     </div>
