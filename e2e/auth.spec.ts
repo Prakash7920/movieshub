@@ -69,13 +69,41 @@ test("registration, login, logout and protected routes work on mobile", async ({
   await page.getByRole("button", { name: "Create account" }).click();
 
   await expect(page.getByRole("status")).toContainText("Account created");
-  await expect.poll(async () => {
-    const user = await prisma.user.findUnique({ where: { email }, select: { id: true, role: true } });
-    return user?.role;
-  }).toBe("USER");
+  await expect(page.getByRole("status")).toContainText("Email verification delivery is not available yet");
+  const registeredUser = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, role: true, isEmailVerified: true },
+  });
+  expect(registeredUser?.role).toBe("USER");
+  expect(registeredUser?.isEmailVerified).toBe(false);
 
+  // An unverified account must not obtain a session. The CI mail provider is intentionally
+  // absent, so create an isolated one-time token fixture and exercise the real verify page/API.
   await page.goto("/auth/login");
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(testPassword);
+  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await expect(page.locator('p[role="alert"]')).toContainText("Email or password is incorrect");
+  await expect(page).toHaveURL(/\/auth\/login$/);
+
+  const verificationToken = createOneTimeToken();
+  await prisma.emailVerificationToken.create({
+    data: {
+      userId: registeredUser!.id,
+      tokenHash: verificationToken.tokenHash,
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    },
+  });
+  await page.goto(`/auth/verify-email#token=${verificationToken.token}`);
+  await expect(page.getByRole("status")).toContainText("verified");
+  const activatedUser = await prisma.user.findUnique({
+    where: { id: registeredUser!.id },
+    select: { isEmailVerified: true },
+  });
+  expect(activatedUser?.isEmailVerified).toBe(true);
+
+  await page.goto("/auth/login");
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill("Incorrect-Test-Password!");
   await page.getByRole("button", { name: "Login", exact: true }).click();
@@ -113,6 +141,32 @@ test("registration, login, logout and protected routes work on mobile", async ({
   expect(anonymousHistory.status()).toBe(401);
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/auth\/login/);
+
+  // Complete password recovery for the same newly registered and verified customer.
+  const resetToken = createOneTimeToken();
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: registeredUser!.id,
+      tokenHash: resetToken.tokenHash,
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    },
+  });
+  const recoveredPassword = "NexaFilm-Recovered-Password-2026!";
+  await page.goto(`/auth/reset-password?token=${resetToken.token}`);
+  const recoveryInputs = page.locator('input[type="password"]');
+  await recoveryInputs.nth(0).fill(recoveredPassword);
+  await recoveryInputs.nth(1).fill(recoveredPassword);
+  await page.getByRole("button", { name: "Update password" }).click();
+  await expect(page.getByRole("status")).toContainText("Password updated");
+
+  await page.goto("/auth/login");
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(testPassword);
+  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await expect(page.locator('p[role="alert"]')).toContainText("Email or password is incorrect");
+  await page.locator('input[type="password"]').fill(recoveredPassword);
+  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await expect(page).toHaveURL(/dashboard/);
 });
 
 test("password reset is single-use and invalidates the previous JWT", async ({ page }) => {
