@@ -94,6 +94,19 @@ test("customer can navigate the legal catalogue, account library, settings and p
   await page.setViewportSize({ width: 390, height: 844 });
   await page.setExtraHTTPHeaders({ "x-vercel-ip-country": "IN" });
 
+  // Guest mobile navigation: primary destinations are reachable without a desktop nav.
+  await page.goto("/");
+  const openMenu = page.getByRole("button", { name: "Open navigation menu" });
+  await expect(openMenu).toHaveAttribute("aria-expanded", "false");
+  await openMenu.click();
+  const mobileNav = page.getByRole("navigation", { name: "Mobile primary navigation" });
+  await expect(mobileNav).toBeVisible();
+  await expect(mobileNav.getByRole("link", { name: "Movies" })).toBeVisible();
+  await expect(mobileNav.getByRole("link", { name: "AI Picks" })).toBeVisible();
+  await mobileNav.getByRole("link", { name: "Movies" }).click();
+  await expect(page).toHaveURL(/\/movies$/);
+  await expect(page.getByRole("button", { name: "Open navigation menu" })).toHaveAttribute("aria-expanded", "false");
+
   const publicRoutes = [
     "/",
     "/movies",
@@ -132,6 +145,16 @@ test("customer can navigate the legal catalogue, account library, settings and p
   await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   await expect(page.getByRole("heading", { name: "My Dashboard" })).toBeVisible();
+
+  // Signed-in mobile navigation must expose account destinations as well.
+  await page.goto("/");
+  await page.getByRole("button", { name: "Open navigation menu" }).click();
+  const signedInMobileNav = page.getByRole("navigation", { name: "Mobile primary navigation" });
+  await expect(signedInMobileNav.getByRole("link", { name: "Dashboard" })).toBeVisible();
+  await expect(signedInMobileNav.getByRole("link", { name: "Admin" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(signedInMobileNav).toBeHidden();
+  await expect(page.getByRole("button", { name: "Open navigation menu" })).toHaveAttribute("aria-expanded", "false");
 
   await page.goto("/");
   await page.getByRole("link", { name: "Explore the Catalogue" }).click();
@@ -180,7 +203,12 @@ test("customer can navigate the legal catalogue, account library, settings and p
   await expect(page.getByText("Playback disabled", { exact: true })).toBeVisible();
   await expect(page.locator("video")).toHaveCount(0);
 
+  // Desktop keeps its full primary nav and hides the mobile disclosure control.
   await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /navigation menu/i })).toBeHidden();
+
   for (const route of ["/movies", "/dashboard", "/dashboard/watchlist", "/dashboard/history", "/dashboard/settings", "/subscription"]) {
     await page.goto(route);
     expect(

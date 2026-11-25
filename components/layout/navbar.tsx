@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { getSession, signOut } from "next-auth/react";
-import { Film, Home, LayoutDashboard, ShieldCheck, Sparkles, LogOut } from "lucide-react";
+import { Film, Home, LayoutDashboard, ShieldCheck, Sparkles, LogOut, Menu, X } from "lucide-react";
 import { LanguageSwitcher } from "@/components/layout/footer";
 import { useLanguage } from "@/components/providers/language-provider";
 
@@ -22,6 +22,7 @@ export function Navbar() {
   const pathname = usePathname();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,6 +39,21 @@ export function Navbar() {
       active = false;
     };
   }, [pathname]);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsMobileMenuOpen(false);
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [isMobileMenuOpen]);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -71,24 +87,35 @@ export function Navbar() {
             className="h-auto w-[132px] sm:w-[168px] lg:w-[190px]"
           />
         </Link>
-        <nav className="hidden items-center gap-2 md:flex">
+
+        <nav aria-label="Primary navigation" className="hidden items-center gap-2 md:flex">
           {navItems.map(({ href, labelKey, icon: Icon }) => (
-            <Link key={href} href={href} className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white">
+            <Link
+              key={href}
+              href={href}
+              aria-current={pathname === href ? "page" : undefined}
+              className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white"
+            >
               <Icon className="h-4 w-4" />
               {t[labelKey]}
             </Link>
           ))}
         </nav>
+
         <div className="flex shrink-0 items-center gap-1 sm:gap-3">
-          <Link
-            href="/admin"
-            aria-label="Admin"
-            title="Admin"
-            className="inline-flex shrink-0 items-center justify-center rounded-full border border-red-500/30 bg-red-500/10 p-2 text-sm font-medium text-red-100 transition hover:bg-red-500/20 md:hidden max-[380px]:hidden"
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:border-red-400 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 md:hidden"
+            aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-controls="mobile-primary-navigation"
+            aria-expanded={isMobileMenuOpen}
+            onClick={() => setIsMobileMenuOpen((open) => !open)}
           >
-            <ShieldCheck className="h-4 w-4" />
-          </Link>
+            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+
           <LanguageSwitcher />
+
           {isLoggedIn ? (
             <button
               type="button"
@@ -101,10 +128,35 @@ export function Navbar() {
               <span className="hidden sm:inline">{isSigningOut ? "Logging out..." : "Logout"}</span>
             </button>
           ) : (
-            <Link href="/auth/login" className="whitespace-nowrap rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white transition hover:border-red-500/50 hover:text-red-200 sm:px-4 sm:text-sm">{t.login}</Link>
+            <Link href="/auth/login" className="whitespace-nowrap rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white transition hover:border-red-500/50 hover:text-red-200 sm:px-4 sm:text-sm">
+              {t.login}
+            </Link>
           )}
         </div>
       </div>
+
+      <nav
+        id="mobile-primary-navigation"
+        aria-label="Mobile primary navigation"
+        hidden={!isMobileMenuOpen}
+        className="page-shell border-t border-white/10 pb-4 pt-3 md:hidden"
+      >
+        <div className="grid gap-1">
+          {navItems.map(({ href, labelKey, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={pathname === href ? "page" : undefined}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-gray-200 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+            >
+              <Icon className="h-4 w-4 text-red-200" />
+              {t[labelKey]}
+            </Link>
+          ))}
+        </div>
+      </nav>
+
       {logoutError && (
         <div className="page-shell pb-2">
           <p role="alert" className="text-xs text-red-300">{logoutError}</p>
