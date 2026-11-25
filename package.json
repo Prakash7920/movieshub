@@ -13,7 +13,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed-catalogue": "tsx prisma/seed-catalogue.ts",
-    "test": "tsx --test tests/security-primitives.test.ts tests/media-access-policy.test.ts tests/media-playback-service.test.ts tests/video-player-contract.test.ts tests/cloudflare-stream.test.ts tests/playback-grant.test.ts",
+    "test": "tsx --test tests/security-primitives.test.ts tests/media-access-policy.test.ts tests/media-playback-service.test.ts tests/video-player-contract.test.ts tests/cloudflare-stream.test.ts tests/playback-grant.test.ts tests/resend-email.test.ts",
     "test:integration": "tsx --test tests/*.integration.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:playback": "playwright test --config=playwright.playback.config.ts"
@@ -22,7 +22,7 @@
     "@hookform/resolvers": "^3.4.2",
     "@prisma/client": "^5.7.0",
     "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
+    "clsx": "^2.1.0",
     "lucide-react": "^0.468.0",
     "next": "15.5.28",
     "next-auth": "^4.24.11",
