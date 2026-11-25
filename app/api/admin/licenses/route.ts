@@ -16,12 +16,11 @@ function normalizeEvidenceReference(value: unknown): string | null {
   if (
     reference.length < 3 ||
     reference.length > 300 ||
-    /[\\u0000-\\u001f\\u007f]/.test(reference) ||
-    /^[a-z][a-z0-9+.-]*:\\/\\//i.test(reference)
+    /[\u0000-\u001f\u007f]/.test(reference) ||
+    /^[a-z][a-z0-9+.-]*:\/\//i.test(reference)
   ) return null;
   return reference;
 }
-
 function normalizeEvidenceSha256(value: unknown): string | null {
   return typeof value === "string" && /^[a-f0-9]{64}$/i.test(value.trim())
     ? value.trim().toLowerCase()
