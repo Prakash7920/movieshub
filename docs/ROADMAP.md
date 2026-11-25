@@ -44,7 +44,7 @@ Scope:
 Existing evidence:
 - **PASS (source-level):** Home, catalogue, movie detail, registration/authentication, dashboard, watchlist, and watch-history routes/components exist on the active branch.
 - **PASS (security boundary):** Catalogue, detail, watchlist, and history queries apply the current publication/licence/territory filters in the reviewed paths.
-- **PARTIAL:** User dashboard exposes watchlist, history, plan status, and a Settings link. The linked `/dashboard/settings` page is missing on the active branch, so account settings are not complete.
+- **IMPLEMENTED — validation in progress:** The missing `/dashboard/settings` route, profile GET/PATCH API, display-name and language-preference persistence, same-origin/JSON/schema guards, private no-store responses, account-isolation integration tests, and mobile Playwright test were added in commit `4417e433979440b0428bdd0f80ef94429d7cfa58`. The new integration tests, unit tests, and TypeScript check pass on GitHub Actions run [#592](https://github.com/Prakash7920/movieshub/actions/runs/45546261296); production build and browser E2E are still pending. This increment is not called fully PASS until the complete workflow finishes.
 - **PARTIAL:** Watch history is manually/API-recorded preview data; automatic playback progress and resume are not available while playback is disabled.
 - **PARTIAL:** The product UI is a Preview experience; full customer acceptance across supported mobile/desktop browsers has not yet been recorded against one final milestone build.
 
@@ -196,4 +196,4 @@ NexaFilm is complete only when **all five milestones are PASS** and the followin
 
 ## Current next implementation
 
-**Milestone 1 product increment:** complete the missing customer account settings route and persistence. The Dashboard currently links to `/dashboard/settings`, but the route is absent on the active delivery branch. Implement display-name and language-preference editing with authenticated, same-origin, validated, private/no-store API handling; verify account isolation and persistence with integration tests and a browser smoke test. Then continue only with the next highest-impact Milestone 1 acceptance gap.
+**Current delivery increment — account settings (commit `4417e433979440b0428bdd0f80ef94429d7cfa58`):** implementation is in place and its integration/unit/type-check stages pass; final build and mobile browser E2E are still being validated. Once this increment is fully PASS, the next grouped Milestone 1 increment is to reconcile stale customer-facing setup/feature documentation and complete one route/link plus responsive customer-journey audit, fixing real failures together rather than creating a separate task for each link.
