@@ -150,7 +150,7 @@ test("customer can navigate the legal catalogue, account library, settings and p
   await expect(page.getByRole("link", { name: "Explore the Catalogue" })).toHaveAttribute("href", "/movies");
   await expect(page.getByRole("link", { name: "Create Account" })).toHaveAttribute("href", "/auth/register");
   await page.getByRole("link", { name: "Create Account" }).click();
-  await expect(page).toHaveURL(/\\/auth\\/register$/);
+  await expect(page).toHaveURL(/\/auth\/register$/);
   await page.goto("/");
   const openMenu = page.getByRole("button", { name: "Open navigation menu" });
   await expect(openMenu).toHaveAttribute("aria-expanded", "false");
@@ -310,7 +310,7 @@ test("customer can navigate the legal catalogue, account library, settings and p
   await expect(page.getByRole("heading", { name: "Payments are not enabled" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Premium checkout coming soon" })).toBeDisabled();
   await page.getByRole("button", { name: "Create a free account", exact: true }).click();
-  await expect(page).toHaveURL(/\\/auth\\/register$/);
+  await expect(page).toHaveURL(/\/auth\/register$/);
   await page.goto("/subscription/success");
   await expect(page.getByRole("heading", { name: "Check your subscription status" })).toBeVisible();
   await page.goto("/subscription/failure");
