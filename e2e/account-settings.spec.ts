@@ -68,7 +68,7 @@ test("customer can update account settings and sync the saved language to a fres
   await page.getByLabel("Display name").fill("Tamil Cinema Fan");
   await page.getByLabel("Preferred language").selectOption("ta");
   await page.getByRole("button", { name: "Save settings" }).click();
-  await expect(page.getByRole("status")).toContainText("Settings saved.");
+  await expect(page.getByRole("status")).toContainText("அமைப்புகள் சேமிக்கப்பட்டன.");
 
   await page.reload();
   await expect(page.getByLabel("காட்சிப் பெயர்")).toHaveValue("Tamil Cinema Fan");
@@ -99,6 +99,31 @@ test("customer can update account settings and sync the saved language to a fres
     await expect(secondPage).toHaveURL(/dashboard/);
     await expect(secondPage.locator("html")).toHaveAttribute("lang", "ta");
     await expect(secondPage.getByRole("link", { name: /திரைப்படங்கள்/ })).toBeVisible();
+    await secondPage.setViewportSize({ width: 390, height: 844 });
+    await secondPage.goto("/");
+    await expect(secondPage.getByRole("heading", { name: "ஒவ்வொரு மொழியிலும் ஒரு சினிமா உலகம்." })).toBeVisible();
+    await secondPage.goto("/movies");
+    await expect(secondPage.getByRole("heading", { name: "திரைப்படங்களைத் தேடுங்கள்" })).toBeVisible();
+    await expect(secondPage.getByPlaceholder("திரைப்படம், தலைப்பு அல்லது விவரத்தைத் தேடுங்கள்...")).toBeVisible();
+    await secondPage.goto("/dashboard");
+    await expect(secondPage.getByRole("heading", { name: "எனது டாஷ்போர்டு" })).toBeVisible();
+    await secondPage.goto("/dashboard/watchlist");
+    await expect(secondPage.getByRole("heading", { name: "எனது விருப்பப் பட்டியல்" })).toBeVisible();
+    await expect(secondPage.getByRole("link", { name: "திரைப்படங்களைப் பாருங்கள்" })).toBeVisible();
+    await secondPage.goto("/dashboard/history");
+    await expect(secondPage.getByRole("heading", { name: "பார்த்த வரலாறு" })).toBeVisible();
+    await secondPage.goto("/dashboard/settings");
+    await expect(secondPage.getByRole("heading", { name: "கணக்கு அமைப்புகள்" })).toBeVisible();
+    await expect(secondPage.getByRole("heading", { name: "கடவுச்சொல்லை மாற்று" })).toBeVisible();
+    await expect(secondPage.getByLabel("தற்போதைய கடவுச்சொல்")).toBeVisible();
+    await secondPage.goto("/subscription");
+    await expect(secondPage.getByRole("heading", { name: "உங்கள் NexaFilm திட்டத்தைத் தேர்ந்தெடுக்கவும்" })).toBeVisible();
+    await expect(secondPage.getByRole("button", { name: "மாதந்தோறும்" })).toBeVisible();
+    await expect(secondPage.getByText("தேர்ந்தெடுக்கப்பட்ட இலவச திரைப்படங்கள்", { exact: true })).toBeVisible();
+    await secondPage.goto("/subscription/success");
+    await expect(secondPage.getByRole("heading", { name: "உங்கள் சந்தா நிலையைச் சரிபார்க்கவும்" })).toBeVisible();
+    await secondPage.goto("/subscription/failure");
+    await expect(secondPage.getByRole("heading", { name: "உங்கள் கட்டண நிலையைச் சரிபார்க்கவும்" })).toBeVisible();
   } finally {
     await secondContext.close();
   }
