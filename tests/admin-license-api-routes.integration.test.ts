@@ -456,7 +456,12 @@ test("admin licence PATCH requires a rejection reason and leaves the pending lic
 test("admin licence PATCH returns 404 when the movie has no licence record", async () => {
   const movieId = await createMovie("no-licence");
   const approval = await withSession(adminId, () => reviewAdminLicense(licenseRequest("PATCH", {
-    movieId, status: "ACTIVE", confirmed: true, agreementReference: "SIGNED-AGREEMENT-2026-003",
+    movieId,
+    status: "ACTIVE",
+    confirmed: true,
+    rightsScopeConfirmed: true,
+    evidenceReference: "LegalVault/NexaFilm/CONTRACT-003",
+    evidenceSha256: "d".repeat(64),
   })));
   assert.ok(approval);
   assert.equal(approval.status, 404, await approval.clone().text());
