@@ -71,8 +71,8 @@ test("customer can update account settings and sync the saved language to a fres
   await expect(page.getByRole("status")).toContainText("Settings saved.");
 
   await page.reload();
-  await expect(page.getByLabel("Display name")).toHaveValue("Tamil Cinema Fan");
-  await expect(page.getByLabel("Preferred language")).toHaveValue("ta");
+  await expect(page.getByLabel("காட்சிப் பெயர்")).toHaveValue("Tamil Cinema Fan");
+  await expect(page.getByLabel("விருப்ப மொழி")).toHaveValue("ta");
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
 
   const saved = await prisma.user.findUnique({
@@ -106,27 +106,27 @@ test("customer can update account settings and sync the saved language to a fres
   // Password changes are available from Settings, verify the current credential,
   // and force a fresh sign-in for this and every other session.
   await page.goto("/dashboard/settings");
-  await expect(page.getByRole("heading", { name: "Change password" })).toBeVisible();
-  await page.getByLabel("Current password").fill("Wrong-Current-Password-2026!");
-  await page.getByLabel("New password", { exact: true }).fill(changedPassword);
-  await page.getByLabel("Confirm new password").fill(changedPassword);
-  await page.getByRole("button", { name: "Update password" }).click();
-  await expect(page.locator('p[role="alert"]')).toContainText("Current password is incorrect.");
+  await expect(page.getByRole("heading", { name: "கடவுச்சொல்லை மாற்று" })).toBeVisible();
+  await page.getByLabel("தற்போதைய கடவுச்சொல்").fill("Wrong-Current-Password-2026!");
+  await page.getByLabel("புதிய கடவுச்சொல்").fill(changedPassword);
+  await page.getByLabel("புதிய கடவுச்சொல்லை உறுதிப்படுத்தவும்").fill(changedPassword);
+  await page.getByRole("button", { name: "கடவுச்சொல்லைப் புதுப்பிக்கவும்" }).click();
+  await expect(page.locator('p[role="alert"]')).toContainText("தற்போதைய கடவுச்சொல் தவறானது.");
 
-  await page.getByLabel("Current password").fill(password);
-  await page.getByLabel("New password", { exact: true }).fill(changedPassword);
-  await page.getByLabel("Confirm new password").fill(changedPassword);
-  await page.getByRole("button", { name: "Update password" }).click();
+  await page.getByLabel("தற்போதைய கடவுச்சொல்").fill(password);
+  await page.getByLabel("புதிய கடவுச்சொல்").fill(changedPassword);
+  await page.getByLabel("புதிய கடவுச்சொல்லை உறுதிப்படுத்தவும்").fill(changedPassword);
+  await page.getByRole("button", { name: "கடவுச்சொல்லைப் புதுப்பிக்கவும்" }).click();
   await expect(page).toHaveURL(/\/auth\/login\?passwordChanged=1/);
-  await expect(page.getByRole("status")).toContainText("Password updated. Please sign in with your new password.");
+  await expect(page.getByRole("status")).toContainText("கடவுச்சொல் புதுப்பிக்கப்பட்டது. புதிய கடவுச்சொல்லுடன் உள்நுழையவும்.");
 
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill(password);
-  await page.getByRole("button", { name: "Login", exact: true }).click();
-  await expect(page.locator('p[role="alert"]')).toContainText("Email or password is incorrect");
+  await page.getByRole("button", { name: "உள்நுழை", exact: true }).click();
+  await expect(page.locator('p[role="alert"]')).toContainText("மின்னஞ்சல் அல்லது கடவுச்சொல் தவறாக உள்ளது.");
 
   await page.locator('input[type="password"]').fill(changedPassword);
-  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await page.getByRole("button", { name: "உள்நுழை", exact: true }).click();
   await expect(page).toHaveURL(/dashboard/);
 
   const finalUser = await prisma.user.findUnique({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useLanguage } from "@/components/providers/language-provider";
 
 type ChangePasswordResponse = {
   message?: string;
@@ -8,6 +9,7 @@ type ChangePasswordResponse = {
 };
 
 export function ChangePasswordForm() {
+  const { t } = useLanguage();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -19,11 +21,11 @@ export function ChangePasswordForm() {
     setError("");
 
     if (newPassword !== confirmPassword) {
-      setError("New password and confirmation do not match.");
+      setError(t.passwordConfirmationMismatch);
       return;
     }
     if (currentPassword === newPassword) {
-      setError("Choose a password different from your current password.");
+      setError(t.passwordMustDiffer);
       return;
     }
 
@@ -38,14 +40,15 @@ export function ChangePasswordForm() {
       const payload = (await response.json().catch(() => ({}))) as ChangePasswordResponse;
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to change your password right now.");
+        const serverMessage = payload.error ?? t.unableToChangePassword;
+        throw new Error(serverMessage === "Current password is incorrect." ? t.currentPasswordIncorrect : serverMessage);
       }
 
       // The server invalidates existing sessions after updating the hash.
       // A full navigation ensures NextAuth re-checks the revoked session.
       window.location.assign("/auth/login?passwordChanged=1");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to change your password right now.");
+      setError(caught instanceof Error ? caught.message : t.unableToChangePassword);
       setIsSubmitting(false);
     }
   }
@@ -54,7 +57,7 @@ export function ChangePasswordForm() {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label htmlFor="current-password" className="mb-2 block text-sm font-medium text-gray-200">
-          Current password
+          {t.currentPassword}
         </label>
         <input
           id="current-password"
@@ -71,7 +74,7 @@ export function ChangePasswordForm() {
 
       <div>
         <label htmlFor="new-password" className="mb-2 block text-sm font-medium text-gray-200">
-          New password
+          {t.newPassword}
         </label>
         <input
           id="new-password"
@@ -84,12 +87,12 @@ export function ChangePasswordForm() {
           required
           className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition focus:border-red-400"
         />
-        <p className="mt-2 text-xs text-gray-500">Use at least 8 characters. You will need to sign in again after changing it.</p>
+        <p className="mt-2 text-xs text-gray-500">{t.passwordMinLengthHelper}</p>
       </div>
 
       <div>
         <label htmlFor="confirm-new-password" className="mb-2 block text-sm font-medium text-gray-200">
-          Confirm new password
+          {t.confirmNewPassword}
         </label>
         <input
           id="confirm-new-password"
@@ -115,7 +118,7 @@ export function ChangePasswordForm() {
         disabled={isSubmitting}
         className="inline-flex items-center justify-center rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isSubmitting ? "Updating password..." : "Update password"}
+        {isSubmitting ? t.updatingPassword : t.updatePassword}
       </button>
     </form>
   );

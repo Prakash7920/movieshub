@@ -5,6 +5,7 @@ import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { Check, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/components/providers/language-provider";
 import {
   SUBSCRIPTION_PLANS,
   getSubscriptionPrice,
@@ -57,6 +58,7 @@ type OrderResponse = {
 
 export default function SubscriptionCheckout({ previewTestModeEnabled }: { previewTestModeEnabled: boolean }) {
   const router = useRouter();
+  const { t } = useLanguage();
   const [billing, setBilling] = useState<SubscriptionBillingCycle>("MONTHLY");
   const [gatewayReady, setGatewayReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -72,7 +74,7 @@ export default function SubscriptionCheckout({ previewTestModeEnabled }: { previ
     if (!previewTestModeEnabled || busy) return;
     const RazorpayCheckout = window.Razorpay;
     if (!RazorpayCheckout) {
-      setError("Secure checkout is still loading. Please try again.");
+      setError(t.secureCheckoutLoadingError);
       return;
     }
 
@@ -102,7 +104,7 @@ export default function SubscriptionCheckout({ previewTestModeEnabled }: { previ
       if (!orderResponse.ok || !order || !order.paymentId || !order.orderId
         || !Number.isSafeInteger(order.amount) || order.amount <= 0
         || order.currency !== "INR" || !order.keyId?.startsWith("rzp_test_")) {
-        throw new Error(order?.error || "Unable to start Test Mode checkout.");
+        throw new Error(order?.error || t.unableToStartTestCheckout);
       }
 
       const checkout = new RazorpayCheckout({
@@ -127,13 +129,13 @@ export default function SubscriptionCheckout({ previewTestModeEnabled }: { previ
             });
             const verification = await verificationResponse.json().catch(() => null) as { verified?: boolean; error?: string } | null;
             if (!verificationResponse.ok || verification?.verified !== true) {
-              throw new Error(verification?.error || "Payment verification did not complete.");
+              throw new Error(verification?.error || t.paymentVerificationIncomplete);
             }
             delete orderIdempotencyKeys.current[billing];
-            setNotice("Test payment verified. Your Preview subscription status has been updated.");
+            setNotice(t.testPaymentVerified);
             router.refresh();
           } catch (verificationError) {
-            setError(verificationError instanceof Error ? verificationError.message : "Payment verification failed. Contact support before retrying.");
+            setError(verificationError instanceof Error ? verificationError.message : t.paymentVerificationFailed);
           } finally {
             setBusy(false);
           }
@@ -144,13 +146,13 @@ export default function SubscriptionCheckout({ previewTestModeEnabled }: { previ
       });
 
       checkout.on("payment.failed", (failure) => {
-        setError(failure.error?.description || failure.error?.reason || "The Test Mode payment did not complete.");
+        setError(failure.error?.description || failure.error?.reason || t.testModePaymentIncomplete);
         setBusy(false);
       });
       checkout.open();
       checkoutOpened = true;
     } catch (checkoutError) {
-      setError(checkoutError instanceof Error ? checkoutError.message : "Unable to open Test Mode checkout.");
+      setError(checkoutError instanceof Error ? checkoutError.message : t.unableToOpenTestCheckout);
     } finally {
       if (!checkoutOpened) setBusy(false);
     }
@@ -171,38 +173,39 @@ export default function SubscriptionCheckout({ previewTestModeEnabled }: { previ
 
       <div className="page-shell pb-16 pt-8">
         <div className="mb-10 text-center">
-          <p className="text-sm uppercase tracking-[0.2em] text-red-200">Plans & pricing</p>
-          <h1 className="mt-3 text-4xl font-black text-white">Choose your NexaFilm plan</h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-400">Choose monthly or annual billing. Paid checkout is enabled only for the Phase 5 Preview Test Mode.</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-red-200">{t.plansPricing}</p>
+          <h1 className="mt-3 text-4xl font-black text-white">{t.choosePlan}</h1>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-400">{t.billingDescription}</p>
         </div>
 
         <div className="mb-8 flex justify-center">
           <div className="inline-flex rounded-full border border-white/10 bg-card/80 p-1">
-            <button type="button" aria-pressed={billing === "MONTHLY"} className={"rounded-full px-4 py-2 text-sm " + (billing === "MONTHLY" ? "bg-red-600 text-white" : "text-gray-300")} onClick={() => setBilling("MONTHLY")}>Monthly</button>
-            <button type="button" aria-pressed={billing === "YEARLY"} className={"rounded-full px-4 py-2 text-sm " + (billing === "YEARLY" ? "bg-red-600 text-white" : "text-gray-300")} onClick={() => setBilling("YEARLY")}>Yearly</button>
+            <button type="button" aria-pressed={billing === "MONTHLY"} className={"rounded-full px-4 py-2 text-sm " + (billing === "MONTHLY" ? "bg-red-600 text-white" : "text-gray-300")} onClick={() => setBilling("MONTHLY")}>{t.monthly}</button>
+            <button type="button" aria-pressed={billing === "YEARLY"} className={"rounded-full px-4 py-2 text-sm " + (billing === "YEARLY" ? "bg-red-600 text-white" : "text-gray-300")} onClick={() => setBilling("YEARLY")}>{t.yearly}</button>
           </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <PlanCard plan={freePlan} billing={billing} onSelect={() => handleCheckout("FREE")} disabled={false} buttonLabel="Create a free account" />
+          <PlanCard plan={freePlan} billing={billing} onSelect={() => handleCheckout("FREE")} disabled={false} buttonLabel={t.createFreeAccount} t={t} />
           <PlanCard
             plan={premiumPlan}
             billing={billing}
             onSelect={() => handleCheckout("PREMIUM")}
             disabled={!previewTestModeEnabled || !gatewayReady || busy}
-            buttonLabel={!previewTestModeEnabled ? "Premium checkout coming soon" : !gatewayReady ? "Loading secure checkout…" : busy ? "Processing…" : "Pay with Razorpay Test Mode"}
+            buttonLabel={!previewTestModeEnabled ? t.premiumCheckoutComingSoon : !gatewayReady ? t.loadingCheckout : busy ? t.processing : t.payWithTestMode}
+            t={t}
           />
         </div>
 
         <div className={"mt-10 rounded-2xl border p-5 " + (previewTestModeEnabled ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5")}>
           <div className="flex items-center gap-3">
             <ShieldCheck className="h-5 w-5 text-amber-300" />
-            <h2 className="font-semibold text-white">{previewTestModeEnabled ? "Razorpay Test Mode — Preview only" : "Payments are not enabled"}</h2>
+            <h2 className="font-semibold text-white">{previewTestModeEnabled ? t.testModeBadge : t.paymentsDisabled}</h2>
           </div>
           <p className="mt-2 text-sm leading-6 text-gray-300">
             {previewTestModeEnabled
-              ? "This checkout is restricted to the Phase 5 Preview branch and requires an rzp_test_ key. Do not enter real card or bank details. Production checkout remains disabled."
-              : "No payment will be collected and no Premium entitlement will be granted from this environment. Checkout will remain disabled until a separately approved release."}
+              ? t.testModeCheckoutDescription
+              : t.paymentsDisabledDescription}
           </p>
           {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
           {notice && <p role="status" className="mt-3 text-sm text-emerald-300">{notice}</p>}
@@ -212,25 +215,31 @@ export default function SubscriptionCheckout({ previewTestModeEnabled }: { previ
   );
 }
 
-function PlanCard({ plan, billing, onSelect, disabled, buttonLabel }: {
+function PlanCard({ plan, billing, onSelect, disabled, buttonLabel, t }: {
   plan: (typeof SUBSCRIPTION_PLANS)[SubscriptionPlanId];
   billing: SubscriptionBillingCycle;
   onSelect: () => void;
   disabled: boolean;
   buttonLabel: string;
+  t: ReturnType<typeof useLanguage>["t"];
 }) {
   const isPremium = plan.id === "PREMIUM";
   const price = getSubscriptionPrice(plan.id, billing);
   const priceLabel = getSubscriptionPriceLabel(plan.id, billing);
+  const name = isPremium ? t.premiumPlanName : t.freePlanName;
+  const description = isPremium ? t.premiumPlanDescription : t.freePlanDescription;
+  const features = isPremium
+    ? [t.premiumFeature1, t.premiumFeature2, t.premiumFeature3, t.premiumFeature4]
+    : [t.freeFeature1, t.freeFeature2, t.freeFeature3, t.freeFeature4];
 
   return (
     <section className={"rounded-[1.75rem] border p-6 " + (isPremium ? "border-red-500/50 bg-red-500/5" : "border-white/10 bg-card/70")}>
-      <p className="text-sm uppercase tracking-[0.22em] text-red-200">{plan.name}</p>
+      <p className="text-sm uppercase tracking-[0.22em] text-red-200">{name}</p>
       <h2 className="mt-3 text-4xl font-bold text-white">{priceLabel}</h2>
-      <p className="mt-1 text-sm text-gray-500">{price === 0 ? "Always free" : billing === "YEARLY" ? "per year" : "per month"}</p>
-      <p className="mt-4 text-sm text-gray-300">{plan.description}</p>
+      <p className="mt-1 text-sm text-gray-500">{price === 0 ? t.alwaysFree : billing === "YEARLY" ? t.perYear : t.perMonth}</p>
+      <p className="mt-4 text-sm text-gray-300">{description}</p>
       <ul className="mt-5 space-y-3 text-sm text-gray-200">
-        {plan.features.map((feature) => (
+        {features.map((feature) => (
           <li key={feature} className="flex items-start gap-2">
             <Check className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
             <span>{feature}</span>
@@ -240,7 +249,7 @@ function PlanCard({ plan, billing, onSelect, disabled, buttonLabel }: {
       <Button type="button" className={"mt-6 w-full " + (isPremium ? "bg-red-600 hover:bg-red-500" : "")} variant={isPremium ? "default" : "secondary"} disabled={disabled} onClick={onSelect}>
         {buttonLabel}
       </Button>
-      {isPremium && <p className="mt-3 text-center text-xs text-gray-500">Test-mode payment only. No Production charge is possible from this page.</p>}
+      {isPremium && <p className="mt-3 text-center text-xs text-gray-500">{t.testModeOnlyNoProductionCharge}</p>}
     </section>
   );
 }

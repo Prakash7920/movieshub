@@ -159,6 +159,8 @@ test("customer can navigate the legal catalogue, account library, settings and p
   await page.goto("/");
   await page.getByRole("link", { name: "Explore the Catalogue" }).click();
   await expect(page).toHaveURL(/\/movies$/);
+  await expect(page.getByRole("heading", { name: "Explore movies" })).toBeVisible();
+  await expect(page.getByPlaceholder("Search movie, title or description...")).toBeVisible();
   const movieCard = page.locator(`a[href="/movies/${slug}"]`);
   await expect(movieCard).toBeVisible();
   await movieCard.click();

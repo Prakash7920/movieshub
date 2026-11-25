@@ -4,6 +4,7 @@ import { ArrowRight, Bookmark, History, Settings2, ShieldCheck } from "lucide-re
 import { WatchlistContent } from "@/components/movies/watchlist";
 import { authOptions } from "@/lib/auth-options";
 import { getUserEntitlements } from "@/lib/subscriptions/entitlements";
+import { LocalizedText } from "@/components/i18n/localized-text";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +22,12 @@ export default async function DashboardPage() {
     <div className="page-shell pb-16 pt-8">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-red-200">NexaFilm preview</p>
-          <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl">My Dashboard</h1>
-          <p className="mt-2 text-sm text-gray-400">Your movie library synced to your account.</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-red-200"><LocalizedText k="dashboardEyebrow" /></p>
+          <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl"><LocalizedText k="myDashboard" /></h1>
+          <p className="mt-2 text-sm text-gray-400"><LocalizedText k="dashboardDescription" /></p>
         </div>
         <Link href="/movies" className="inline-flex items-center gap-2 rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500">
-          Explore movies <ArrowRight className="h-4 w-4" />
+          <LocalizedText k="exploreMoviesButton" /> <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
 
@@ -35,60 +36,60 @@ export default async function DashboardPage() {
           <div>
             <div className="flex items-center gap-2 text-red-200">
               <ShieldCheck className="h-5 w-5" />
-              <p className="text-sm font-semibold uppercase tracking-[0.16em]">My plan</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em]"><LocalizedText k="myPlan" /></p>
             </div>
             <h2 id="subscription-heading" className="mt-2 text-2xl font-bold text-white">
-              {entitlements ? (entitlements.plan === "PREMIUM" ? "Premium" : "Free") : sessionUser?.id ? "Status unavailable" : "Sign in to view your plan"}
+              {entitlements ? <LocalizedText k={entitlements.plan === "PREMIUM" ? "premium" : "free"} /> : sessionUser?.id ? <LocalizedText k="statusUnavailable" /> : <LocalizedText k="signInToViewPlan" />}
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-400">
               {entitlements
                 ? entitlements.isPremium
-                  ? "Your account currently has Premium entitlements. Secure streaming and downloads are not enabled yet."
-                  : "You are on the Free plan. No active Premium entitlement is recorded for this account. View plans to see what checkout is enabled in this environment."
+                  ? <LocalizedText k="premiumEntitlementDescription" />
+                  : <LocalizedText k="freeEntitlementDescription" />
                 : sessionUser?.id
-                  ? "We couldn't load your plan right now. Please refresh the page later."
-                  : "Your plan details are private to your signed-in account."}
+                  ? <LocalizedText k="planStatusUnavailableDescription" />
+                  : <LocalizedText k="privatePlanDetails" />}
             </p>
           </div>
           {entitlements ? (
             <span className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-gray-200">
-              {entitlements.subscriptionStatus === "TRIALING" ? "Trial" : entitlements.isPremium ? "Active" : "Free plan"}
+              {entitlements.subscriptionStatus === "TRIALING" ? <LocalizedText k="trial" /> : entitlements.isPremium ? <LocalizedText k="active" /> : <LocalizedText k="freePlanStatus" />}
             </span>
           ) : null}
         </div>
         {entitlements?.validUntil ? (
           <p className="mt-4 text-xs text-gray-500">
-            Current access valid until {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(entitlements.validUntil)}.
+            <LocalizedText k="currentAccessValidUntil" values={{ date: new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(entitlements.validUntil) }} />
           </p>
         ) : null}
         <div className="mt-5 flex flex-wrap gap-3">
           <Link href="/subscription" className="inline-flex items-center gap-2 rounded-full border border-red-400/40 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/10">
-            View plans <ArrowRight className="h-4 w-4" />
+            <LocalizedText k="viewPlans" /> <ArrowRight className="h-4 w-4" />
           </Link>
           {!sessionUser?.id ? (
             <Link href="/auth/login" className="inline-flex items-center rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5">
-              Sign in
+              <LocalizedText k="signIn" />
             </Link>
           ) : null}
         </div>
       </section>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <DashboardCard href="/dashboard/watchlist" icon={<Bookmark className="h-5 w-5" />} title="My Watchlist" description="View and manage the movies you saved." />
-        <DashboardCard href="/dashboard/history" icon={<History className="h-5 w-5" />} title="Watch History" description="View your saved history entries and preview progress." />
-        <DashboardCard href="/dashboard/settings" icon={<Settings2 className="h-5 w-5" />} title="Settings" description="Manage your account name and preferred language." />
+        <DashboardCard href="/dashboard/watchlist" icon={<Bookmark className="h-5 w-5" />} title={<LocalizedText k="myWatchlist" />} description={<LocalizedText k="watchlistCardDescription" />} />
+        <DashboardCard href="/dashboard/history" icon={<History className="h-5 w-5" />} title={<LocalizedText k="watchHistory" />} description={<LocalizedText k="historyCardDescription" />} />
+        <DashboardCard href="/dashboard/settings" icon={<Settings2 className="h-5 w-5" />} title={<LocalizedText k="settings" />} description={<LocalizedText k="settingsCardDescription" />} />
       </div>
       <section className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold text-white">Saved movies</h2>
-            <p className="mt-1 text-sm text-gray-400">Your account watchlist.</p>
+            <h2 className="text-xl font-semibold text-white"><LocalizedText k="savedMovies" /></h2>
+            <p className="mt-1 text-sm text-gray-400"><LocalizedText k="accountWatchlist" /></p>
           </div>
-          <Link href="/dashboard/watchlist" className="text-sm font-medium text-red-300 hover:text-red-200">Manage watchlist →</Link>
+          <Link href="/dashboard/watchlist" className="text-sm font-medium text-red-300 hover:text-red-200"><LocalizedText k="manageWatchlist" /></Link>
         </div>
         <WatchlistContent />
       </section>
-      <p className="mt-6 text-xs leading-5 text-gray-500">Subscription information is loaded securely for your signed-in account. Payments, streaming, and secure video access remain limited by the current Preview release gates.</p>
+      <p className="mt-6 text-xs leading-5 text-gray-500"><LocalizedText k="dashboardPreviewNotice" /></p>
     </div>
   );
 }
@@ -96,8 +97,8 @@ export default async function DashboardPage() {
 function DashboardCard({ href, icon, title, description }: {
   href: string;
   icon: React.ReactNode;
-  title: string;
-  description: string;
+  title: React.ReactNode;
+  description: React.ReactNode;
 }) {
   return (
     <Link href={href} className="group rounded-3xl border border-white/10 bg-white/5 p-5 transition hover:border-red-500/40 hover:bg-white/[0.07]">

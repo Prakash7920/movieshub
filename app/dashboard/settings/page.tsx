@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
 import { AccountSettingsForm } from "@/components/dashboard/account-settings-form";
 import { ChangePasswordForm } from "@/components/dashboard/change-password-form";
+import { LocalizedText } from "@/components/i18n/localized-text";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -39,23 +40,23 @@ export default async function AccountSettingsPage() {
     <main className="page-shell pb-16 pt-8">
       <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-red-200">Your account</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-red-200"><LocalizedText k="yourAccount" /></p>
           <h1 className="mt-2 flex items-center gap-3 text-3xl font-bold text-white md:text-4xl">
             <UserRound className="h-7 w-7 text-red-300" />
-            Account Settings
+            <LocalizedText k="accountSettings" />
           </h1>
-          <p className="mt-2 text-sm text-gray-400">Manage the profile details and language used by your NexaFilm account.</p>
+          <p className="mt-2 text-sm text-gray-400"><LocalizedText k="settingsPageDescription" /></p>
         </div>
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-white">
-          <ArrowLeft className="h-4 w-4" /> Back to dashboard
+          <ArrowLeft className="h-4 w-4" /> <LocalizedText k="backToDashboard" />
         </Link>
       </div>
 
       <div className="mx-auto grid max-w-2xl gap-6">
         <section className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7" aria-labelledby="account-settings-heading">
           <div className="mb-6">
-            <h2 id="account-settings-heading" className="text-xl font-semibold text-white">Profile details</h2>
-            <p className="mt-2 text-sm leading-6 text-gray-400">Your email address is read-only here. Display name and language preference are saved securely to your account.</p>
+            <h2 id="account-settings-heading" className="text-xl font-semibold text-white"><LocalizedText k="profileDetails" /></h2>
+            <p className="mt-2 text-sm leading-6 text-gray-400"><LocalizedText k="profileDetailsDescription" /></p>
           </div>
           <AccountSettingsForm
             initialDisplayName={profile?.displayName ?? user.name ?? ""}
@@ -71,10 +72,8 @@ export default async function AccountSettingsPage() {
               <LockKeyhole className="h-5 w-5" />
             </span>
             <div>
-              <h2 id="change-password-heading" className="text-xl font-semibold text-white">Change password</h2>
-              <p className="mt-2 text-sm leading-6 text-gray-400">
-                Update the password for your account. Existing sessions are invalidated and you will be asked to sign in again.
-              </p>
+              <h2 id="change-password-heading" className="text-xl font-semibold text-white"><LocalizedText k="changePassword" /></h2>
+              <p className="mt-2 text-sm leading-6 text-gray-400"><LocalizedText k="changePasswordDescription" /></p>
             </div>
           </div>
 
@@ -82,11 +81,11 @@ export default async function AccountSettingsPage() {
             <>
               <ChangePasswordForm />
               <p className="mt-4 text-xs text-gray-500">
-                Forgot your current password? <Link href="/auth/forgot-password" className="underline underline-offset-2 hover:text-white">Reset it by email</Link>.
+                <LocalizedText k="forgotCurrentPassword" /> <Link href="/auth/forgot-password" className="underline underline-offset-2 hover:text-white"><LocalizedText k="resetItByEmail" /></Link>.
               </p>
             </>
           ) : (
-            <p className="text-sm text-gray-400">Your password is managed by your sign-in provider.</p>
+            <p className="text-sm text-gray-400"><LocalizedText k="passwordManagedByProvider" /></p>
           )}
         </section>
       </div>

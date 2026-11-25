@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/components/providers/language-provider";
+import { getTranslations } from "@/lib/translations";
 
 type LanguagePreference = "en" | "ta";
 
@@ -28,7 +29,7 @@ export function AccountSettingsForm({
   initialLanguagePreference,
 }: AccountSettingsFormProps) {
   const router = useRouter();
-  const { setLanguage } = useLanguage();
+  const { setLanguage, t } = useLanguage();
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [languagePreference, setLanguagePreference] = useState<LanguagePreference>(initialLanguagePreference);
   const [isSaving, setIsSaving] = useState(false);
@@ -51,7 +52,7 @@ export function AccountSettingsForm({
       const payload = (await response.json().catch(() => ({}))) as ProfileResponse;
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to save account settings.");
+        throw new Error(payload.error ?? t.saveSettingsError);
       }
 
       const savedName = payload.profile?.displayName ?? displayName;
@@ -59,10 +60,10 @@ export function AccountSettingsForm({
       setDisplayName(savedName);
       setLanguagePreference(savedLanguage);
       setLanguage(savedLanguage);
-      setMessage("Settings saved.");
+      setMessage(getTranslations(savedLanguage).settingsSaved);
       router.refresh();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to save account settings.");
+      setError(caught instanceof Error ? caught.message : t.saveSettingsError);
     } finally {
       setIsSaving(false);
     }
@@ -72,7 +73,7 @@ export function AccountSettingsForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <label htmlFor="account-email" className="mb-2 block text-sm font-medium text-gray-200">
-          Email address
+          {t.emailAddress}
         </label>
         <input
           id="account-email"
@@ -83,15 +84,13 @@ export function AccountSettingsForm({
           className="w-full cursor-not-allowed rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-gray-400"
         />
         <p id="account-email-help" className="mt-2 text-xs text-gray-500">
-          {isEmailVerified
-            ? "Your email address is verified. Email changes require a separate verification flow."
-            : "Your email address is not verified yet. Complete email verification before using restricted account features."}
+          {isEmailVerified ? t.emailVerifiedHelper : t.emailNotVerifiedHelper}
         </p>
       </div>
 
       <div>
         <label htmlFor="account-display-name" className="mb-2 block text-sm font-medium text-gray-200">
-          Display name
+          {t.displayName}
         </label>
         <input
           id="account-display-name"
@@ -105,12 +104,12 @@ export function AccountSettingsForm({
           required
           className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition focus:border-red-400"
         />
-        <p className="mt-2 text-xs text-gray-500">This name appears on your NexaFilm account.</p>
+        <p className="mt-2 text-xs text-gray-500">{t.displayNameHelper}</p>
       </div>
 
       <div>
         <label htmlFor="account-language" className="mb-2 block text-sm font-medium text-gray-200">
-          Preferred language
+          {t.preferredLanguage}
         </label>
         <select
           id="account-language"
@@ -122,7 +121,7 @@ export function AccountSettingsForm({
           <option value="en">English</option>
           <option value="ta">தமிழ் (Tamil)</option>
         </select>
-        <p className="mt-2 text-xs text-gray-500">Your choice is saved to your account and applied to this browser.</p>
+        <p className="mt-2 text-xs text-gray-500">{t.languagePreferenceHelper}</p>
       </div>
 
       {error ? (
@@ -142,10 +141,10 @@ export function AccountSettingsForm({
           disabled={isSaving}
           className="inline-flex items-center justify-center rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSaving ? "Saving..." : "Save settings"}
+          {isSaving ? t.savingSettings : t.saveSettings}
         </button>
         <a href="/auth/forgot-password" className="text-sm text-gray-300 underline decoration-white/30 underline-offset-4 hover:text-white">
-          Reset password
+          {t.resetPassword}
         </a>
       </div>
     </form>
