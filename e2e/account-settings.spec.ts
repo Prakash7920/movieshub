@@ -135,13 +135,13 @@ test("customer can update account settings and sync the saved language to a fres
   await page.goto("/dashboard/settings");
   await expect(page.getByRole("heading", { name: "கடவுச்சொல்லை மாற்று" })).toBeVisible();
   await page.getByLabel("தற்போதைய கடவுச்சொல்").fill("Wrong-Current-Password-2026!");
-  await page.getByLabel("புதிய கடவுச்சொல்").fill(changedPassword);
+  await page.getByLabel("புதிய கடவுச்சொல்", { exact: true }).fill(changedPassword);
   await page.getByLabel("புதிய கடவுச்சொல்லை உறுதிப்படுத்தவும்").fill(changedPassword);
   await page.getByRole("button", { name: "கடவுச்சொல்லைப் புதுப்பிக்கவும்" }).click();
   await expect(page.locator('p[role="alert"]')).toContainText("தற்போதைய கடவுச்சொல் தவறானது.");
 
   await page.getByLabel("தற்போதைய கடவுச்சொல்").fill(password);
-  await page.getByLabel("புதிய கடவுச்சொல்").fill(changedPassword);
+  await page.getByLabel("புதிய கடவுச்சொல்", { exact: true }).fill(changedPassword);
   await page.getByLabel("புதிய கடவுச்சொல்லை உறுதிப்படுத்தவும்").fill(changedPassword);
   await page.getByRole("button", { name: "கடவுச்சொல்லைப் புதுப்பிக்கவும்" }).click();
   await expect(page).toHaveURL(/\/auth\/login\?passwordChanged=1/);
