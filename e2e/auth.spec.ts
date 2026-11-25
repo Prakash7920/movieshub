@@ -129,8 +129,7 @@ test("registration, login, logout and protected routes work on mobile", async ({
 
   await page.locator('header button[aria-label="Logout"]').click();
   await expect(page).toHaveURL("/");
-  const registeredUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-  expect(registeredUser).not.toBeNull();
+  expect(registeredUser?.id).toBeTruthy();
   await expect.poll(async () => prisma.revokedSessionToken.count({ where: { userId: registeredUser!.id } })).toBeGreaterThan(0);
   const revokedSession = await concurrentPage.request.get("/api/subscription/status");
   expect(revokedSession.status()).toBe(401);
