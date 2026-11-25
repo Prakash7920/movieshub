@@ -223,10 +223,11 @@ test("customer can navigate the legal catalogue, account library, settings and p
   }
 
   // Verify the movie-detail interface follows the selected language on mobile and desktop.
+  await page.goto("/movies");
   await page.getByRole("combobox", { name: "Select language" }).selectOption("ta");
   await expect(page.locator("html")).toHaveAttribute("lang", "ta");
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`/movies/${slug}`);
+  await page.locator(`a[href="/movies/${slug}"]`).click();
   await expect(page.getByText("திரைப்பட விவரங்கள்", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /திரைப்படங்களுக்குத் திரும்பு/ })).toBeVisible();
   await expect(page.getByText("ஒலி: ta · வசன வரிகள்: en", { exact: true })).toBeVisible();
@@ -234,7 +235,6 @@ test("customer can navigate the legal catalogue, account library, settings and p
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
 
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto(`/movies/${slug}`);
   await expect(page.getByText("திரைப்பட விவரங்கள்", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
 
