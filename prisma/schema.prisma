@@ -329,7 +329,7 @@ model License {
   id String @id @default(cuid())
   movieId String @unique
   owner String
-  status LicenseStatus @default(ACTIVE)
+  status LicenseStatus @default(PENDING)
   startDate DateTime
   expiryDate DateTime
   allowedCountries String[]
