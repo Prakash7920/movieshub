@@ -111,7 +111,7 @@ test("customer can update account settings and sync the saved language to a fres
   await page.getByLabel("New password", { exact: true }).fill(changedPassword);
   await page.getByLabel("Confirm new password").fill(changedPassword);
   await page.getByRole("button", { name: "Update password" }).click();
-  await expect(page.getByRole("alert")).toContainText("Current password is incorrect.");
+  await expect(page.locator('p[role="alert"]')).toContainText("Current password is incorrect.");
 
   await page.getByLabel("Current password").fill(password);
   await page.getByLabel("New password", { exact: true }).fill(changedPassword);
@@ -123,7 +123,7 @@ test("customer can update account settings and sync the saved language to a fres
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill(password);
   await page.getByRole("button", { name: "Login", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Email or password is incorrect");
+  await expect(page.locator('p[role="alert"]')).toContainText("Email or password is incorrect");
 
   await page.locator('input[type="password"]').fill(changedPassword);
   await page.getByRole("button", { name: "Login", exact: true }).click();
