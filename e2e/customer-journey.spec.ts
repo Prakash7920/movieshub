@@ -130,7 +130,7 @@ test("catalogue ignores stale search responses and exposes loading state", async
   const searchBox = page.getByPlaceholder("Search movie, title or description...");
   await searchBox.fill("old");
   await page.waitForTimeout(300);
-  await expect(page.getByText("Loading catalogue...", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Explore movies" }).getByText("Loading catalogue...", { exact: true })).toBeVisible();
   await searchBox.fill("new");
   await expect(page.getByRole("heading", { name: "New result" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Old result" })).toBeHidden();
@@ -198,7 +198,7 @@ test("customer can navigate the legal catalogue, account library, settings and p
     await route.continue();
   });
   await page.goto("/movies");
-  await expect(page.getByRole("alert")).toContainText("catalogue. Please try again.");
+  await expect(page.locator('p[role="alert"]')).toContainText("catalogue. Please try again.");
   await page.getByRole("button", { name: "Retry" }).click();
   await expect(page.locator('a[href="/movies/' + slug + '"]')).toBeVisible();
   await page.unroute("**/api/movies*");
