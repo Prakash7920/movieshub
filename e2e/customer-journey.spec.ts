@@ -99,6 +99,48 @@ test.afterAll(async () => {
   await prisma.$disconnect();
 });
 
+test("catalogue ignores stale search responses and exposes loading state", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setExtraHTTPHeaders({ "x-vercel-ip-country": "IN" });
+
+  const movie = (slug: string, title: string) => ({
+    id: slug,
+    slug,
+    titleEn: title,
+    titleTa: title,
+    posterUrl: "https://example.invalid/poster.jpg",
+    backdropUrl: "https://example.invalid/backdrop.jpg",
+    language: "ta",
+    releaseYear: 2026,
+    genre: "Drama",
+    genres: ["drama"],
+  });
+  await page.route("**/api/movies*", async (route) => {
+    const search = new URL(route.request().url()).searchParams.get("search") ?? "";
+    if (search === "old") {
+      // Keep the earlier response pending long enough for the newer query to finish first.
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ movies: [movie("old-result", "Old result")], genres: [{ name: "Drama", slug: "drama" }] }) });
+      return;
+    }
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ movies: [movie("new-result", "New result")], genres: [{ name: "Drama", slug: "drama" }] }) });
+  });
+
+  await page.goto("/movies");
+  const searchBox = page.getByPlaceholder("Search movie, title or description...");
+  await searchBox.fill("old");
+  await page.waitForTimeout(300);
+  await expect(page.getByText("Loading movies...", { exact: true })).toBeVisible();
+  await searchBox.fill("new");
+  await expect(page.getByRole("heading", { name: "New result" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Old result" })).toBeHidden();
+  await page.waitForTimeout(1300);
+  await expect(page.getByRole("heading", { name: "New result" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Old result" })).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+  await page.unroute("**/api/movies*");
+});
+
 test("customer can navigate the legal catalogue, account library, settings and plans", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.setExtraHTTPHeaders({ "x-vercel-ip-country": "IN" });
