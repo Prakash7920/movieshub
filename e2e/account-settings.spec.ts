@@ -108,13 +108,13 @@ test("customer can update account settings and sync the saved language to a fres
   await page.goto("/dashboard/settings");
   await expect(page.getByRole("heading", { name: "Change password" })).toBeVisible();
   await page.getByLabel("Current password").fill("Wrong-Current-Password-2026!");
-  await page.getByLabel("New password").fill(changedPassword);
+  await page.getByLabel("New password", { exact: true }).fill(changedPassword);
   await page.getByLabel("Confirm new password").fill(changedPassword);
   await page.getByRole("button", { name: "Update password" }).click();
   await expect(page.getByRole("alert")).toContainText("Current password is incorrect.");
 
   await page.getByLabel("Current password").fill(password);
-  await page.getByLabel("New password").fill(changedPassword);
+  await page.getByLabel("New password", { exact: true }).fill(changedPassword);
   await page.getByLabel("Confirm new password").fill(changedPassword);
   await page.getByRole("button", { name: "Update password" }).click();
   await expect(page).toHaveURL(/\/auth\/login\?passwordChanged=1/);
