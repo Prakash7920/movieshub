@@ -113,7 +113,7 @@ test("customer can update account settings and sync the saved language to a fres
     await expect(secondPage.getByRole("heading", { name: "எனது விருப்பப் பட்டியல்" })).toBeVisible();
     await expect(secondPage.getByRole("link", { name: "திரைப்படங்களைப் பாருங்கள்" })).toBeVisible();
     await secondPage.goto("/dashboard/history");
-    await expect(secondPage.getByRole("heading", { name: "பார்த்த வரலாறு" })).toBeVisible();
+    await expect(secondPage.getByRole("heading", { name: "பார்த்த வரலாறு", exact: true })).toBeVisible();
     await secondPage.goto("/dashboard/settings");
     await expect(secondPage.getByRole("heading", { name: "கணக்கு அமைப்புகள்" })).toBeVisible();
     await expect(secondPage.getByRole("heading", { name: "கடவுச்சொல்லை மாற்று" })).toBeVisible();
