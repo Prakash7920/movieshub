@@ -167,6 +167,9 @@ test("customer can navigate the legal catalogue, account library, settings and p
 
   await expect(page).toHaveURL(new RegExp(`/movies/${slug}$`));
   await expect(page.getByRole("heading", { name: "NexaFilm Customer Journey Test" })).toBeVisible();
+  await expect(page.getByText("Catalogue metadata", { exact: true })).toBeVisible();
+  await expect(page.getByText("Audio: ta · Subtitles: en", { exact: true })).toBeVisible();
+  await expect(page.getByText("Playback is disabled in this Preview until distribution rights and secure video access are verified.", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Add to Watchlist" }).click();
   await expect(page.getByRole("button", { name: "Remove from Watchlist" })).toBeVisible();
@@ -218,6 +221,22 @@ test("customer can navigate the legal catalogue, account library, settings and p
       `desktop horizontal overflow on ${route}`,
     ).toBe(false);
   }
+
+  // Verify the movie-detail interface follows the selected language on mobile and desktop.
+  await page.getByRole("combobox", { name: "Select language" }).selectOption("ta");
+  await expect(page.locator("html")).toHaveAttribute("lang", "ta");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/movies/${slug}`);
+  await expect(page.getByText("திரைப்பட விவரங்கள்", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /திரைப்படங்களுக்குத் திரும்பு/ })).toBeVisible();
+  await expect(page.getByText("ஒலி: ta · வசன வரிகள்: en", { exact: true })).toBeVisible();
+  await expect(page.getByText("விநியோக உரிமைகள் மற்றும் பாதுகாப்பான வீடியோ அணுகல் சரிபார்க்கப்படும் வரை இந்த முன்னோட்டத்தில் வீடியோ இயக்கம் முடக்கப்பட்டுள்ளது.", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`/movies/${slug}`);
+  await expect(page.getByText("திரைப்பட விவரங்கள்", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
 
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "Admin access required" })).toBeVisible();
