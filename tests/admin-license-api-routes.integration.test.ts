@@ -183,7 +183,9 @@ test("admin licence PATCH approves only a current verified licence and audits th
       movieId,
       status: "ACTIVE",
       confirmed: true,
-      agreementReference: "SIGNED-AGREEMENT-2026-001",
+      rightsScopeConfirmed: true,
+      evidenceReference: "LegalVault/NexaFilm/SIGNED-AGREEMENT-2026-001",
+      evidenceSha256: "a".repeat(64),
     })),
   );
   assert.ok(response, "admin approval must return a response");
@@ -191,11 +193,24 @@ test("admin licence PATCH approves only a current verified licence and audits th
 
   const license = await prismaTest.license.findUnique({
     where: { movieId },
-    select: { status: true, notes: true },
+    select: {
+      status: true,
+      notes: true,
+      evidenceReference: true,
+      evidenceSha256: true,
+      rightsScopeConfirmed: true,
+      reviewedAt: true,
+      reviewedByUserId: true,
+    },
   });
   assert.ok(license);
   assert.equal(license.status, "ACTIVE");
-  assert.match(license.notes ?? "", /SIGNED-AGREEMENT-2026-001/);
+  assert.equal(license.notes, "Test agreement record");
+  assert.equal(license.evidenceReference, "LegalVault/NexaFilm/SIGNED-AGREEMENT-2026-001");
+  assert.equal(license.evidenceSha256, "a".repeat(64));
+  assert.equal(license.rightsScopeConfirmed, true);
+  assert.ok(license.reviewedAt instanceof Date);
+  assert.equal(license.reviewedByUserId, adminId);
 
   const movie = await prismaTest.movie.findUnique({
     where: { id: movieId },
@@ -212,7 +227,113 @@ test("admin licence PATCH approves only a current verified licence and audits th
   });
   assert.ok(audit, "approval must create its matching audit event");
   assert.equal(audit.actorEmail, `licence-route-admin-${suffix}@example.invalid`);
-  assert.deepEqual(audit.metadata, { agreementReferenceRecorded: true });
+  assert.deepEqual(audit.metadata, { evidenceSha256: "a".repeat(64), rightsScopeConfirmed: true });
+});
+
+test("admin licence approval rejects missing or malformed evidence hashes without changing pending state", async () => {
+  const movieId = await createMovie("invalid-evidence-hash");
+  const saved = await savePendingLicense(movieId);
+  assert.ok(saved);
+  assert.equal(saved.status, 201, await saved.clone().text());
+
+  const base = {
+    movieId,
+    status: "ACTIVE",
+    confirmed: true,
+    rightsScopeConfirmed: true,
+    evidenceReference: "LegalVault/NexaFilm/CONTRACT-1001",
+  };
+  const missingHash = await withSession(adminId, () =>
+    reviewAdminLicense(licenseRequest("PATCH", base)),
+  );
+  assert.ok(missingHash);
+  assert.equal(missingHash.status, 400, await missingHash.clone().text());
+
+  const malformedHash = await withSession(adminId, () =>
+    reviewAdminLicense(licenseRequest("PATCH", { ...base, evidenceSha256: "not-a-sha256" })),
+  );
+  assert.ok(malformedHash);
+  assert.equal(malformedHash.status, 400, await malformedHash.clone().text());
+
+  const license = await prismaTest.license.findUnique({
+    where: { movieId },
+    select: { status: true, evidenceReference: true, evidenceSha256: true, rightsScopeConfirmed: true },
+  });
+  assert.ok(license);
+  assert.equal(license.status, "PENDING");
+  assert.equal(license.evidenceReference, null);
+  assert.equal(license.evidenceSha256, null);
+  assert.equal(license.rightsScopeConfirmed, false);
+  assert.equal(await prismaTest.adminAuditLog.count({
+    where: { actorUserId: adminId!, action: "LICENSE_APPROVED", resourceType: "License", resourceId: movieId },
+  }), 0);
+});
+
+test("admin licence approval requires explicit rights-scope attestation", async () => {
+  const movieId = await createMovie("missing-scope-attestation");
+  const saved = await savePendingLicense(movieId);
+  assert.ok(saved);
+  assert.equal(saved.status, 201, await saved.clone().text());
+
+  const response = await withSession(adminId, () =>
+    reviewAdminLicense(licenseRequest("PATCH", {
+      movieId,
+      status: "ACTIVE",
+      confirmed: true,
+      rightsScopeConfirmed: false,
+      evidenceReference: "LegalVault/NexaFilm/CONTRACT-1002",
+      evidenceSha256: "b".repeat(64),
+    })),
+  );
+  assert.ok(response);
+  assert.equal(response.status, 400, await response.clone().text());
+  assert.equal(await prismaTest.license.count({ where: { movieId, status: "PENDING" } }), 1);
+  assert.equal(await prismaTest.adminAuditLog.count({
+    where: { actorUserId: adminId!, action: "LICENSE_APPROVED", resourceType: "License", resourceId: movieId },
+  }), 0);
+});
+
+test("resaving licence details resets earlier evidence approval and reviewer metadata", async () => {
+  const movieId = await createMovie("evidence-reset");
+  const saved = await savePendingLicense(movieId);
+  assert.ok(saved);
+  assert.equal(saved.status, 201, await saved.clone().text());
+
+  const approval = await withSession(adminId, () =>
+    reviewAdminLicense(licenseRequest("PATCH", {
+      movieId,
+      status: "ACTIVE",
+      confirmed: true,
+      rightsScopeConfirmed: true,
+      evidenceReference: "LegalVault/NexaFilm/CONTRACT-1003",
+      evidenceSha256: "c".repeat(64),
+    })),
+  );
+  assert.ok(approval);
+  assert.equal(approval.status, 200, await approval.clone().text());
+
+  const resaved = await savePendingLicense(movieId);
+  assert.ok(resaved);
+  assert.equal(resaved.status, 201, await resaved.clone().text());
+
+  const license = await prismaTest.license.findUnique({
+    where: { movieId },
+    select: {
+      status: true,
+      evidenceReference: true,
+      evidenceSha256: true,
+      rightsScopeConfirmed: true,
+      reviewedAt: true,
+      reviewedByUserId: true,
+    },
+  });
+  assert.ok(license);
+  assert.equal(license.status, "PENDING");
+  assert.equal(license.evidenceReference, null);
+  assert.equal(license.evidenceSha256, null);
+  assert.equal(license.rightsScopeConfirmed, false);
+  assert.equal(license.reviewedAt, null);
+  assert.equal(license.reviewedByUserId, null);
 });
 
 test("admin licence PATCH rejects a licence with a recorded reason and audits the rejection", async () => {
