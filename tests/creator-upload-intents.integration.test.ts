@@ -375,7 +375,7 @@ test("internal upload-intent service applies server policy, idempotency and expi
       resourceType: "UploadIntent",
       resourceId: created.intent.id,
       action: "CREATOR_UPLOAD_INTENT_CREATED",
-      actorUserId: creatorOneId,
+      actorUserId: creatorOneId!,
     },
   }), 1);
   assert.equal(await prismaTest.adminAuditLog.count({
