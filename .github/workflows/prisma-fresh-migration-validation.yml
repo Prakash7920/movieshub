@@ -101,7 +101,7 @@ jobs:
           MOVIESHUB_E2E: "true"
           MEDIA_CONTROL_PLANE_MIGRATION_TEST: "true"
           RATE_LIMIT_SECRET: ci-only-rate-limit-secret-value-with-more-than-32-characters
-        run: npx tsx --test tests/media-control-plane.integration.test.ts
+        run: npx tsx --test tests/media-control-plane.test.ts
 
       - name: Verify migration ledger exactly matches repository migrations
         shell: bash
