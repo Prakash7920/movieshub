@@ -13,6 +13,17 @@ type CreatorProfile = {
   adultEligibilityConfirmed: boolean;
 };
 
+type SubmissionRevision = {
+  id: string;
+  revisionNumber: number;
+  title: string;
+  status: string;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  reviewNotes: string | null;
+  createdAt: string;
+};
+
 type Submission = {
   id: string;
   title: string;
@@ -26,6 +37,7 @@ type Submission = {
   reviewedAt: string | null;
   reviewNotes: string | null;
   updatedAt: string;
+  revisions: SubmissionRevision[];
 };
 
 type DraftForm = {
@@ -311,6 +323,7 @@ export default function CreatorStudio() {
 
                 <section>
                   <h2 className="text-xl font-semibold text-white">Your submissions</h2>
+                  <p className="mt-2 text-sm text-gray-400">Each metadata change creates a new revision. Metadata approval is not rights clearance. Upload authorization remains disabled until a separate human rights review for the exact work and revision is available.</p>
                   <div className="mt-4 space-y-3">
                     {submissions.length === 0 ? <p className="text-sm text-gray-400">No submissions yet.</p> : submissions.map(item => (
                       <article key={item.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
@@ -322,6 +335,18 @@ export default function CreatorStudio() {
                           <span className="rounded-full border border-white/15 px-3 py-1 text-xs text-gray-200">{item.status.replaceAll("_", " ")}</span>
                         </div>
                         {item.reviewNotes && <p className="mt-3 text-sm text-amber-200">Review note: {item.reviewNotes}</p>}
+                        {item.revisions?.length > 0 && (
+                          <div className="mt-3 border-t border-white/10 pt-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Revision history</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {item.revisions.map(revision => (
+                                <span key={revision.id} className="rounded-lg border border-white/10 px-2 py-1 text-xs text-gray-300">
+                                  v{revision.revisionNumber} · {revision.status.replaceAll("_", " ")}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {(item.status === "DRAFT" || item.status === "NEEDS_CHANGES") && (
                           <button type="button" onClick={() => editSubmission(item)} className="mt-3 rounded-full border border-white/20 px-4 py-2 text-xs font-semibold text-white">Edit draft</button>
                         )}
