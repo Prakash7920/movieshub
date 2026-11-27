@@ -12,7 +12,7 @@ import {
 } from "@prisma/client";
 import { POST as createUploadIntentRoute, GET as getUploadIntentsRoute } from "../app/api/creator/upload-intents/route";
 import { prisma } from "../lib/prisma";
-import { createUploadIntentInTransaction, UPLOAD_INTENT_TTL_MS } from "../lib/creator/upload-intent-service";
+import { createUploadIntentInTransaction, isUploadIntentExpired, UPLOAD_INTENT_TTL_MS } from "../lib/creator/upload-intent-service";
 import { runWithApiSessionForIntegrationTest } from "../lib/security/api-session";
 
 const prismaTest = prisma;
@@ -369,6 +369,10 @@ test("internal upload-intent service applies server policy, idempotency and expi
     select: { status: true, expiresAt: true },
   });
   assert.equal(persisted?.status, UploadIntentStatus.EXPIRED);
+  assert.equal(
+    isUploadIntentExpired({ status: UploadIntentStatus.EXPIRED, expiresAt: persisted!.expiresAt }),
+    true,
+  );
 
   assert.equal(await prismaTest.adminAuditLog.count({
     where: {
