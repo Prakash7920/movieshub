@@ -210,9 +210,14 @@ test("creator application, metadata submission and admin review are ownership-sc
 
   const createdDraft = await asApi(creatorOneId, () => createCreatorSubmission(submissionRequest("POST", metadata("Creator One Short Film"))));
   assert.equal(createdDraft.status, 201, await createdDraft.clone().text());
-  const draftData = await createdDraft.json() as { submission: { id: string; status: string } };
+  const draftData = await createdDraft.json() as {
+    submission: { id: string; status: string };
+    revision: { id: string; revisionNumber: number; status: string };
+  };
   submissionOneId = draftData.submission.id;
   assert.equal(draftData.submission.status, "DRAFT");
+  assert.equal(draftData.revision.revisionNumber, 1);
+  assert.equal(draftData.revision.status, "DRAFT");
 
   const savedDraft = await asApi(creatorOneId, () => updateCreatorSubmission(submissionRequest("PATCH", {
     action: "SAVE_DRAFT",
@@ -220,6 +225,21 @@ test("creator application, metadata submission and admin review are ownership-sc
     ...metadata("Creator One Updated Short Film"),
   })));
   assert.equal(savedDraft.status, 200, await savedDraft.clone().text());
+  const savedDraftData = await savedDraft.json() as {
+    revision: { id: string; revisionNumber: number; status: string };
+  };
+  assert.equal(savedDraftData.revision.revisionNumber, 2);
+  assert.equal(savedDraftData.revision.status, "DRAFT");
+
+  const revisionHistoryAfterSave = await prismaTest.creatorSubmissionRevision.findMany({
+    where: { creatorSubmissionId: submissionOneId! },
+    orderBy: { revisionNumber: "asc" },
+    select: { revisionNumber: true, status: true },
+  });
+  assert.deepEqual(revisionHistoryAfterSave, [
+    { revisionNumber: 1, status: "WITHDRAWN" },
+    { revisionNumber: 2, status: "DRAFT" },
+  ]);
 
   const otherCreatorCannotReadOwnListOfFirstCreator = await asApi(creatorTwoId, () => getCreatorSubmissions());
   assert.equal(otherCreatorCannotReadOwnListOfFirstCreator.status, 200);
@@ -234,21 +254,74 @@ test("creator application, metadata submission and admin review are ownership-sc
     id: submissionOneId!,
   })));
   assert.equal(submitted.status, 200, await submitted.clone().text());
-  const submittedData = await submitted.json() as { submission: { status: string } };
+  const submittedData = await submitted.json() as {
+    submission: { status: string };
+    revision: { revisionNumber: number; status: string };
+  };
   assert.equal(submittedData.submission.status, "SUBMITTED");
+  assert.equal(submittedData.revision.revisionNumber, 2);
+  assert.equal(submittedData.revision.status, "SUBMITTED");
 
   const queueWithSubmission = await asAdmin(adminId, () => getAdminCreatorQueue(new Request("https://creator-studio-test.example/api/admin/creators")));
   assert.equal(queueWithSubmission.status, 200);
   const reviewQueueData = await queueWithSubmission.json() as { submissions: Array<{ id: string }> };
   assert.ok(reviewQueueData.submissions.some(item => item.id === submissionOneId));
 
+  const returnedForChanges = await asAdmin(adminId, () => reviewAdminCreatorItem(adminReviewRequest({
+    resourceType: "CREATOR_SUBMISSION",
+    id: submissionOneId!,
+    status: "NEEDS_CHANGES",
+    notes: "Please clarify the independent work's end-credit attribution before resubmission.",
+  })));
+  assert.equal(returnedForChanges.status, 200, await returnedForChanges.clone().text());
+
+  const needsChangesRevision = await prismaTest.creatorSubmissionRevision.findFirst({
+    where: { creatorSubmissionId: submissionOneId, revisionNumber: 2 },
+    select: { status: true, reviewedByUserId: true, reviewNotes: true },
+  });
+  assert.ok(needsChangesRevision);
+  assert.equal(needsChangesRevision.status, "NEEDS_CHANGES");
+  assert.equal(needsChangesRevision.reviewedByUserId, adminId);
+
+  const revisedDraft = await asApi(creatorOneId, () => updateCreatorSubmission(submissionRequest("PATCH", {
+    action: "SAVE_DRAFT",
+    id: submissionOneId!,
+    ...metadata("Creator One Resubmitted Short Film"),
+  })));
+  assert.equal(revisedDraft.status, 200, await revisedDraft.clone().text());
+  const revisedDraftData = await revisedDraft.json() as {
+    revision: { revisionNumber: number; status: string };
+  };
+  assert.equal(revisedDraftData.revision.revisionNumber, 3);
+  assert.equal(revisedDraftData.revision.status, "DRAFT");
+
+  const resubmitted = await asApi(creatorOneId, () => updateCreatorSubmission(submissionRequest("PATCH", {
+    action: "SUBMIT_FOR_REVIEW",
+    id: submissionOneId!,
+  })));
+  assert.equal(resubmitted.status, 200, await resubmitted.clone().text());
+  const resubmittedData = await resubmitted.json() as {
+    revision: { revisionNumber: number; status: string };
+  };
+  assert.equal(resubmittedData.revision.revisionNumber, 3);
+  assert.equal(resubmittedData.revision.status, "SUBMITTED");
+
   const approvedMetadata = await asAdmin(adminId, () => reviewAdminCreatorItem(adminReviewRequest({
     resourceType: "CREATOR_SUBMISSION",
     id: submissionOneId!,
     status: "APPROVED_FOR_CATALOGUE",
-    notes: "Metadata approved for a separate rights and catalogue review.",
+    notes: "Metadata revision approved for a separate rights and catalogue review only.",
   })));
   assert.equal(approvedMetadata.status, 200, await approvedMetadata.clone().text());
+
+  const persistedRevision = await prismaTest.creatorSubmissionRevision.findFirst({
+    where: { creatorSubmissionId: submissionOneId, revisionNumber: 3 },
+    select: { status: true, reviewedByUserId: true, reviewedAt: true },
+  });
+  assert.ok(persistedRevision);
+  assert.equal(persistedRevision.status, "APPROVED_FOR_CATALOGUE");
+  assert.equal(persistedRevision.reviewedByUserId, adminId);
+  assert.ok(persistedRevision.reviewedAt instanceof Date);
 
   const persistedSubmission = await prismaTest.creatorSubmission.findUnique({
     where: { id: submissionOneId! },
@@ -259,11 +332,11 @@ test("creator application, metadata submission and admin review are ownership-sc
   assert.equal(persistedSubmission.reviewedByUserId, adminId);
   assert.ok(persistedSubmission.reviewedAt instanceof Date);
 
-  const noMovieCreated = await prismaTest.movie.findFirst({
-    where: { titleEn: "Creator One Updated Short Film" },
+  const noMovieCreated = await prismaTest.movie.findMany({
+    where: { titleEn: { in: ["Creator One Updated Short Film", "Creator One Resubmitted Short Film"] } },
     select: { id: true, isPublished: true, contentStatus: true, videoUrl: true, cloudflareStreamUid: true },
   });
-  assert.equal(noMovieCreated, null, "metadata approval must not create or publish a Movie");
+  assert.equal(noMovieCreated.length, 0, "metadata approval must not create or publish a Movie");
 
   const lockedSubmission = await asApi(creatorOneId, () => updateCreatorSubmission(submissionRequest("PATCH", {
     action: "SAVE_DRAFT",
