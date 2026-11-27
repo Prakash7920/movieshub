@@ -131,7 +131,7 @@ before(async () => {
   });
   creatorTwoProfileId = profileTwo.id;
 
-  const pendingProfile = await prismaTest.creatorProfile.create({
+  await prismaTest.creatorProfile.create({
     data: {
       userId: pendingCreatorId!,
       publicName: `Upload Intent Pending ${suffix.slice(0, 6)}`,
@@ -163,7 +163,7 @@ before(async () => {
       status: CreatorSubmissionRevisionStatus.APPROVED_FOR_CATALOGUE,
       submittedAt: new Date(),
       reviewedAt: new Date(),
-      reviewedByUserId: adminId,
+      reviewedByUserId: adminId!,
       reviewNotes: "Synthetic metadata approval only; independent rights review remains absent.",
     },
     select: { id: true },
@@ -295,18 +295,18 @@ test("upload-intent routes enforce identity, creator ownership, revision status 
   assert.equal(foreignIntentList.status, 404);
 
   assert.equal(await prismaTest.uploadIntent.count({
-    where: { submissionRevisionId: approvedRevisionId },
+    where: { submissionRevisionId: approvedRevisionId! },
   }), 0, "the production rights gate must not create an UploadIntent");
   assert.equal(await prismaTest.uploadIntent.count({
-    where: { submissionRevisionId: draftRevisionId },
+    where: { submissionRevisionId: draftRevisionId! },
   }), 0);
 
   assert.equal(await prismaTest.adminAuditLog.count({
     where: {
       resourceType: "CreatorSubmissionRevision",
-      resourceId: approvedRevisionId,
+      resourceId: approvedRevisionId!,
       action: "CREATOR_UPLOAD_INTENT_BLOCKED_RIGHTS_GATE",
-      actorUserId: creatorOneId,
+      actorUserId: creatorOneId!,
     },
   }), 1);
 });
@@ -325,7 +325,7 @@ test("internal upload-intent service applies server policy, idempotency and expi
   const syntheticTestRightsDecision = {
     allowed: true as const,
     decisionReference: `synthetic-test-rights-${suffix}`,
-    reviewerUserId: adminId,
+    reviewerUserId: adminId!,
   };
 
   const created = await prismaTest.$transaction(tx =>
