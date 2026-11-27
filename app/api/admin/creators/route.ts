@@ -120,7 +120,8 @@ export async function PATCH(request: Request) {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     if (result.kind === "NOT_FOUND") return NextResponse.json({ error: "Review item not found." }, { status: 404, headers: PRIVATE_HEADERS });
-    if (result.kind === "LOCKED") if (result.kind === "INELIGIBLE") return NextResponse.json({ error: "A creator must confirm the 18+ eligibility declaration before approval." }, { status: 409, headers: PRIVATE_HEADERS });
+    if (result.kind === "LOCKED") return NextResponse.json({ error: "This review item is no longer awaiting this decision." }, { status: 409, headers: PRIVATE_HEADERS });
+    if (result.kind === "INELIGIBLE") return NextResponse.json({ error: "A creator must confirm the 18+ eligibility declaration before approval." }, { status: 409, headers: PRIVATE_HEADERS });
     return NextResponse.json({ message: "Review decision recorded. This does not publish content or enable playback.", resource: result.resource }, { headers: PRIVATE_HEADERS });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return NextResponse.json({ error: "The review item changed. Reload the queue and try again." }, { status: 409, headers: PRIVATE_HEADERS });
