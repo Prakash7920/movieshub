@@ -394,3 +394,47 @@ CREATE TRIGGER "MediaAssetVersion_status_transition_guard"
   BEFORE UPDATE OF "status" ON "MediaAssetVersion"
   FOR EACH ROW
   EXECUTE FUNCTION "guard_media_asset_version_status_transition"();
+
+
+-- Persist only the initial state for an upload intent. Authorization is a
+-- separate, later transition after all server-side gates have passed.
+CREATE FUNCTION "guard_upload_intent_initial_state"()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW."status" <> 'PENDING'
+    OR NEW."authorizedAt" IS NOT NULL
+    OR NEW."completedAt" IS NOT NULL
+    OR NEW."consumedAt" IS NOT NULL
+  THEN
+    RAISE EXCEPTION 'Upload intents must be created in PENDING state without lifecycle timestamps'
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER "UploadIntent_initial_state_guard"
+  BEFORE INSERT ON "UploadIntent"
+  FOR EACH ROW
+  EXECUTE FUNCTION "guard_upload_intent_initial_state"();
+
+-- No external/provider state may skip the quarantine entry point.
+CREATE FUNCTION "guard_media_asset_version_initial_state"()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW."status" <> 'QUARANTINED' OR NEW."validatedAt" IS NOT NULL OR NEW."removedAt" IS NOT NULL THEN
+    RAISE EXCEPTION 'Media asset versions must be created in QUARANTINED state'
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER "MediaAssetVersion_initial_quarantine_guard"
+  BEFORE INSERT ON "MediaAssetVersion"
+  FOR EACH ROW
+  EXECUTE FUNCTION "guard_media_asset_version_initial_state"();
