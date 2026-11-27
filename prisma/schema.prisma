@@ -543,6 +543,7 @@ model MediaAssetVersion {
   uploadIntent         UploadIntent              @relation(fields: [uploadIntentId, submissionRevisionId], references: [id, submissionRevisionId], onDelete: Cascade)
 
   @@unique([submissionRevisionId, versionNumber])
+  @@unique([uploadIntentId, submissionRevisionId])
   @@index([submissionRevisionId, status, createdAt])
   @@index([status, createdAt])
 }
