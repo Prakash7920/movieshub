@@ -10,6 +10,7 @@ type CreatorProfile = {
   appliedAt: string;
   reviewedAt: string | null;
   reviewNotes: string | null;
+  adultEligibilityConfirmed: boolean;
 };
 
 type Submission = {
@@ -50,6 +51,7 @@ export default function CreatorStudio() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [publicName, setPublicName] = useState("");
   const [bio, setBio] = useState("");
+  const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [draft, setDraft] = useState<DraftForm>(EMPTY_DRAFT);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,7 +95,7 @@ export default function CreatorStudio() {
       const response = await fetch("/api/creator/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ publicName, bio }),
+        body: JSON.stringify({ publicName, bio, adultEligibilityConfirmed: adultConfirmed }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Unable to submit creator application.");
@@ -241,7 +243,11 @@ export default function CreatorStudio() {
               Short bio (optional)
               <textarea className={inputClass + " min-h-28"} maxLength={500} value={bio} onChange={event => setBio(event.target.value)} />
             </label>
-            <p className="text-xs leading-5 text-gray-400">A verified email and active account are required. Applying does not grant any film rights or guarantee acceptance or earnings.</p>
+            <label className="flex items-start gap-3 text-sm text-gray-300">
+              <input type="checkbox" required checked={adultConfirmed} onChange={event => setAdultConfirmed(event.target.checked)} className="mt-1 h-4 w-4" />
+              <span>I confirm that I am 18 years old or older. This is a self-declaration, not independent age verification; NexaFilm may require a separate check before onboarding.</span>
+            </label>
+            <p className="text-xs leading-5 text-gray-400">A verified email and active account are required. Do not submit identity or bank documents in this form. Applying does not grant any film rights or guarantee acceptance or earnings.</p>
             <button disabled={busy} className="rounded-full bg-red-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
               {busy ? "Submitting…" : "Apply as creator"}
             </button>
