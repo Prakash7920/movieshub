@@ -377,6 +377,7 @@ model CreatorProfile {
   userId            String               @unique
   publicName        String               @db.VarChar(80)
   bio               String?              @db.VarChar(500)
+  adultEligibilityConfirmed Boolean       @default(false)
   status            CreatorProfileStatus @default(PENDING)
   appliedAt         DateTime             @default(now())
   reviewedAt        DateTime?
