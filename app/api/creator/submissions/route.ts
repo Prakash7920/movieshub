@@ -301,7 +301,7 @@ export async function PATCH(request: Request) {
           latestRevision.releaseYear === parsed.data.releaseYear &&
           latestRevision.contentType === parsed.data.contentType;
 
-        if (matchesExistingDraft) {
+        if (latestRevision && matchesExistingDraft) {
           const unchangedRevision = await tx.creatorSubmissionRevision.findUnique({
             where: { id: latestRevision.id },
             select: revisionResponseSelect,
