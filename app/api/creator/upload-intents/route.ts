@@ -10,6 +10,7 @@ import { resolveCreatorUploadRightsGate } from "@/lib/creator/upload-rights-gate
 import {
   createUploadIntentInTransaction,
   isUploadIntentExpired,
+  type SafeUploadIntent,
 } from "@/lib/creator/upload-intent-service";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/security/client-identity";
@@ -35,6 +36,14 @@ async function applyUploadIntentRateLimit(request: Request, userId: string) {
   return {
     allowed: userLimit.allowed && ipLimit.allowed,
     retryAfterSeconds: Math.max(userLimit.retryAfterSeconds, ipLimit.retryAfterSeconds),
+  };
+}
+
+function serializeUploadIntent(intent: SafeUploadIntent) {
+  return {
+    ...intent,
+    // Prisma BigInt values are not JSON serializable.
+    maxFileSizeBytes: intent.maxFileSizeBytes.toString(),
   };
 }
 
@@ -93,7 +102,7 @@ export async function GET(request: Request) {
     const now = new Date();
     return NextResponse.json({
       uploadIntents: intents.map((intent) => ({
-        ...intent,
+        ...serializeUploadIntent(intent),
         isExpired: isUploadIntentExpired(intent, now),
       })),
     }, { headers: PRIVATE_HEADERS });
@@ -187,13 +196,13 @@ export async function POST(request: Request) {
       return NextResponse.json({
         code: "UPLOAD_INTENT_EXPIRED",
         error: "This upload intent has expired. Create a new request with a new idempotency key.",
-        uploadIntent: result.intent,
+        uploadIntent: serializeUploadIntent(result.intent),
       }, { status: 410, headers: PRIVATE_HEADERS });
     }
 
     const status = result.kind === "CREATED" ? 201 : 200;
     return NextResponse.json({
-      uploadIntent: result.intent,
+      uploadIntent: serializeUploadIntent(result.intent),
       idempotentReplay: result.kind === "REPLAYED",
       // No upload URL, provider credential or file-transfer capability is returned.
     }, { status, headers: PRIVATE_HEADERS });
