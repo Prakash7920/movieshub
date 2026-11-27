@@ -90,9 +90,9 @@ export async function PATCH(request: Request) {
 
     const result = await prisma.$transaction(async (tx) => {
       if (parsed.data.resourceType === "CREATOR_PROFILE") {
-        if (parsed.data.status === "APPROVED" && parsed.data.ageVerificationReviewed !== true) return { kind: "AGE_REVIEW_REQUIRED" as const };
         const current = await tx.creatorProfile.findUnique({ where: { id: parsed.data.id }, select: { id: true, status: true, adultEligibilityConfirmed: true } });
         if (!current) return { kind: "NOT_FOUND" as const };
+        if (parsed.data.status === "APPROVED" && parsed.data.ageVerificationReviewed !== true) return { kind: "AGE_REVIEW_REQUIRED" as const };
         if (parsed.data.status === "APPROVED" && !current.adultEligibilityConfirmed) return { kind: "INELIGIBLE" as const };
         if (current.status !== "PENDING" && !(current.status === "APPROVED" && parsed.data.status === "SUSPENDED")) return { kind: "LOCKED" as const };
         const profile = await tx.creatorProfile.update({
