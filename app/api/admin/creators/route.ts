@@ -17,6 +17,7 @@ const reviewSchema = z.discriminatedUnion("resourceType", [
     resourceType: z.literal("CREATOR_PROFILE"),
     id: z.string().min(1),
     status: z.enum(["APPROVED", "REJECTED", "SUSPENDED"]),
+    ageVerificationReviewed: z.boolean().optional(),
     notes: z.string().trim().min(3).max(1000),
   }).strict(),
   z.object({
@@ -89,6 +90,7 @@ export async function PATCH(request: Request) {
 
     const result = await prisma.$transaction(async (tx) => {
       if (parsed.data.resourceType === "CREATOR_PROFILE") {
+        if (parsed.data.status === "APPROVED" && parsed.data.ageVerificationReviewed !== true) return { kind: "AGE_REVIEW_REQUIRED" as const };
         const current = await tx.creatorProfile.findUnique({ where: { id: parsed.data.id }, select: { id: true, status: true, adultEligibilityConfirmed: true } });
         if (!current) return { kind: "NOT_FOUND" as const };
         if (parsed.data.status === "APPROVED" && !current.adultEligibilityConfirmed) return { kind: "INELIGIBLE" as const };
@@ -98,7 +100,15 @@ export async function PATCH(request: Request) {
           data: { status: parsed.data.status, reviewedAt: new Date(), reviewedByUserId: auth.userId, reviewNotes: parsed.data.notes },
           select: { id: true, publicName: true, status: true },
         });
-        await writeAdminAuditEvent(tx, { actorUserId: auth.userId, action: `CREATOR_PROFILE_${parsed.data.status}`, resourceType: "CreatorProfile", resourceId: profile.id });
+        await writeAdminAuditEvent(tx, {
+          actorUserId: auth.userId,
+          action: `CREATOR_PROFILE_${parsed.data.status}`,
+          resourceType: "CreatorProfile",
+          resourceId: profile.id,
+          metadata: parsed.data.status === "APPROVED"
+            ? { adultEligibilityConfirmed: true, ageVerificationReviewed: true }
+            : { adultEligibilityConfirmed: current.adultEligibilityConfirmed },
+        });
         return { kind: "UPDATED" as const, resource: profile };
       }
 
@@ -122,6 +132,7 @@ export async function PATCH(request: Request) {
     if (result.kind === "NOT_FOUND") return NextResponse.json({ error: "Review item not found." }, { status: 404, headers: PRIVATE_HEADERS });
     if (result.kind === "LOCKED") return NextResponse.json({ error: "This review item is no longer awaiting this decision." }, { status: 409, headers: PRIVATE_HEADERS });
     if (result.kind === "INELIGIBLE") return NextResponse.json({ error: "A creator must confirm the 18+ eligibility declaration before approval." }, { status: 409, headers: PRIVATE_HEADERS });
+    if (result.kind === "AGE_REVIEW_REQUIRED") return NextResponse.json({ error: "Confirm that the creator's 18+ eligibility was independently checked through the approved restricted process." }, { status: 400, headers: PRIVATE_HEADERS });
     return NextResponse.json({ message: "Review decision recorded. This does not publish content or enable playback.", resource: result.resource }, { headers: PRIVATE_HEADERS });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return NextResponse.json({ error: "The review item changed. Reload the queue and try again." }, { status: 409, headers: PRIVATE_HEADERS });
