@@ -102,7 +102,7 @@ before(async () => {
 
   const profile = await prismaTest.creatorProfile.create({
     data: {
-      userId: creatorUserId,
+      userId: creatorUserId!,
       publicName: `Media Test ${suffix.slice(0, 8)}`,
       adultEligibilityConfirmed: true,
       status: CreatorProfileStatus.APPROVED,
@@ -113,7 +113,7 @@ before(async () => {
 
   const submission = await prismaTest.creatorSubmission.create({
     data: {
-      creatorProfileId,
+      creatorProfileId: creatorProfileId!,
       ...revisionMetadata("Control Plane Test Submission"),
       status: CreatorSubmissionStatus.SUBMITTED,
       submittedAt: new Date(),
@@ -124,7 +124,7 @@ before(async () => {
 
   const revision = await prismaTest.creatorSubmissionRevision.create({
     data: {
-      creatorSubmissionId,
+      creatorSubmissionId: creatorSubmissionId!,
       revisionNumber: 1,
       ...revisionMetadata("Control Plane Test Submission"),
       status: CreatorSubmissionRevisionStatus.SUBMITTED,
@@ -136,7 +136,7 @@ before(async () => {
 
   const revisionTwo = await prismaTest.creatorSubmissionRevision.create({
     data: {
-      creatorSubmissionId,
+      creatorSubmissionId: creatorSubmissionId!,
       revisionNumber: 2,
       ...revisionMetadata("Control Plane Test Submission — revision two"),
     },
