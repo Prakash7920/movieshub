@@ -23,13 +23,11 @@ let pendingCreatorId: string | null = null;
 let adminId: string | null = null;
 let creatorOneProfileId: string | null = null;
 let creatorTwoProfileId: string | null = null;
-let pendingProfileId: string | null = null;
 let creatorOneSubmissionId: string | null = null;
 let creatorTwoSubmissionId: string | null = null;
 let approvedRevisionId: string | null = null;
 let draftRevisionId: string | null = null;
 let foreignRevisionId: string | null = null;
-let createdIntentId: string | null = null;
 
 function jsonRequest(
   url: string,
@@ -113,7 +111,7 @@ before(async () => {
 
   const profileOne = await prismaTest.creatorProfile.create({
     data: {
-      userId: creatorOneId,
+      userId: creatorOneId!,
       publicName: `Upload Intent One ${suffix.slice(0, 6)}`,
       adultEligibilityConfirmed: true,
       status: CreatorProfileStatus.APPROVED,
@@ -124,7 +122,7 @@ before(async () => {
 
   const profileTwo = await prismaTest.creatorProfile.create({
     data: {
-      userId: creatorTwoId,
+      userId: creatorTwoId!,
       publicName: `Upload Intent Two ${suffix.slice(0, 6)}`,
       adultEligibilityConfirmed: true,
       status: CreatorProfileStatus.APPROVED,
@@ -135,23 +133,22 @@ before(async () => {
 
   const pendingProfile = await prismaTest.creatorProfile.create({
     data: {
-      userId: pendingCreatorId,
+      userId: pendingCreatorId!,
       publicName: `Upload Intent Pending ${suffix.slice(0, 6)}`,
       adultEligibilityConfirmed: true,
       status: CreatorProfileStatus.PENDING,
     },
     select: { id: true },
   });
-  pendingProfileId = pendingProfile.id;
 
   const submissionOne = await prismaTest.creatorSubmission.create({
     data: {
-      creatorProfileId: creatorOneProfileId,
+      creatorProfileId: creatorOneProfileId!,
       ...metadata(`Approved Rights-Gate Test ${suffix.slice(0, 6)}`),
       status: CreatorSubmissionStatus.APPROVED_FOR_CATALOGUE,
       submittedAt: new Date(),
       reviewedAt: new Date(),
-      reviewedByUserId: adminId,
+      reviewedByUserId: adminId!,
       reviewNotes: "Synthetic metadata approval only; no rights decision is implied.",
     },
     select: { id: true },
@@ -160,7 +157,7 @@ before(async () => {
 
   const approvedRevision = await prismaTest.creatorSubmissionRevision.create({
     data: {
-      creatorSubmissionId: creatorOneSubmissionId,
+      creatorSubmissionId: creatorOneSubmissionId!,
       revisionNumber: 1,
       ...metadata(`Approved Rights-Gate Test ${suffix.slice(0, 6)}`),
       status: CreatorSubmissionRevisionStatus.APPROVED_FOR_CATALOGUE,
@@ -185,7 +182,7 @@ before(async () => {
 
   const submissionTwo = await prismaTest.creatorSubmission.create({
     data: {
-      creatorProfileId: creatorTwoProfileId,
+      creatorProfileId: creatorTwoProfileId!,
       ...metadata(`Foreign Rights-Gate Test ${suffix.slice(0, 6)}`),
       status: CreatorSubmissionStatus.APPROVED_FOR_CATALOGUE,
       submittedAt: new Date(),
@@ -198,7 +195,7 @@ before(async () => {
 
   const foreignRevision = await prismaTest.creatorSubmissionRevision.create({
     data: {
-      creatorSubmissionId: creatorTwoSubmissionId,
+      creatorSubmissionId: creatorTwoSubmissionId!,
       revisionNumber: 1,
       ...metadata(`Foreign Rights-Gate Test ${suffix.slice(0, 6)}`),
       status: CreatorSubmissionRevisionStatus.APPROVED_FOR_CATALOGUE,
@@ -319,9 +316,9 @@ test("internal upload-intent service applies server policy, idempotency and expi
 
   const now = new Date();
   const input = {
-    creatorProfileId: creatorOneProfileId,
-    actorUserId: creatorOneId,
-    submissionRevisionId: approvedRevisionId,
+    creatorProfileId: creatorOneProfileId!,
+    actorUserId: creatorOneId!,
+    submissionRevisionId: approvedRevisionId!,
     mediaRole: CreatorMediaRole.PRIMARY_VIDEO,
     idempotencyKey: `service-created-${suffix}`,
   };
@@ -336,7 +333,6 @@ test("internal upload-intent service applies server policy, idempotency and expi
   );
   assert.equal(created.kind, "CREATED");
   if (created.kind !== "CREATED") return;
-  createdIntentId = created.intent.id;
   assert.equal(created.intent.status, UploadIntentStatus.PENDING);
   assert.deepEqual(created.intent.allowedMimeTypes, ["video/mp4"]);
   assert.equal(created.intent.maxFileSizeBytes, 4n * 1024n * 1024n * 1024n);
