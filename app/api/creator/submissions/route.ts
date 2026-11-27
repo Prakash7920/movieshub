@@ -250,6 +250,7 @@ export async function PATCH(request: Request) {
         select: {
           id: true,
           status: true,
+          updatedAt: true,
           title: true,
           synopsis: true,
           originalLanguage: true,
@@ -259,7 +260,17 @@ export async function PATCH(request: Request) {
           revisions: {
             orderBy: { revisionNumber: "desc" },
             take: 1,
-            select: { id: true, revisionNumber: true, status: true },
+            select: {
+              id: true,
+              revisionNumber: true,
+              status: true,
+              title: true,
+              synopsis: true,
+              originalLanguage: true,
+              runtimeMinutes: true,
+              releaseYear: true,
+              contentType: true,
+            },
           },
         },
       });
@@ -279,6 +290,42 @@ export async function PATCH(request: Request) {
           latestRevision.status !== "WITHDRAWN"
         ) {
           return { kind: "LOCKED" as const };
+        }
+
+        const matchesExistingDraft =
+          latestRevision?.status === "DRAFT" &&
+          latestRevision.title === parsed.data.title &&
+          latestRevision.synopsis === parsed.data.synopsis &&
+          latestRevision.originalLanguage === parsed.data.originalLanguage &&
+          latestRevision.runtimeMinutes === parsed.data.runtimeMinutes &&
+          latestRevision.releaseYear === parsed.data.releaseYear &&
+          latestRevision.contentType === parsed.data.contentType;
+
+        if (matchesExistingDraft) {
+          const unchangedRevision = await tx.creatorSubmissionRevision.findUnique({
+            where: { id: latestRevision.id },
+            select: revisionResponseSelect,
+          });
+          if (!unchangedRevision) return { kind: "NOT_FOUND" as const };
+
+          await writeAdminAuditEvent(tx, {
+            actorUserId: creator.user.id,
+            action: "CREATOR_SUBMISSION_DRAFT_SAVE_UNCHANGED",
+            resourceType: "CreatorSubmissionRevision",
+            resourceId: unchangedRevision.id,
+            metadata: { creatorSubmissionId: existing.id, revisionNumber: unchangedRevision.revisionNumber },
+          });
+
+          return {
+            kind: "SAVED" as const,
+            submission: {
+              id: existing.id,
+              title: existing.title,
+              status: existing.status,
+              updatedAt: existing.updatedAt,
+            },
+            revision: unchangedRevision,
+          };
         }
 
         if (
