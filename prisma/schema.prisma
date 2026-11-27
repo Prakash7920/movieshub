@@ -83,6 +83,46 @@ enum CreatorContentType {
   EPISODE
 }
 
+enum CreatorSubmissionRevisionStatus {
+  DRAFT
+  SUBMITTED
+  NEEDS_CHANGES
+  REJECTED
+  APPROVED_FOR_CATALOGUE
+  SUPERSEDED
+  WITHDRAWN
+}
+
+enum CreatorMediaRole {
+  PRIMARY_VIDEO
+  TRAILER
+  POSTER
+  BACKDROP
+  CAPTION
+  SUBTITLE
+}
+
+enum UploadIntentStatus {
+  PENDING
+  AUTHORIZED
+  COMPLETED
+  CONSUMED
+  EXPIRED
+  CANCELLED
+  FAILED
+}
+
+enum MediaAssetVersionStatus {
+  QUARANTINED
+  PROCESSING
+  TECHNICAL_REVIEW
+  READY_FOR_REVIEW
+  REJECTED
+  TAKEDOWN_PENDING
+  REMOVED
+  FAILED
+}
+
 model User {
   id               String          @id @default(cuid())
   email            String          @unique
@@ -114,6 +154,7 @@ model User {
   creatorProfile        CreatorProfile?
   reviewedCreatorProfiles CreatorProfile[] @relation("CreatorProfileReviewer")
   reviewedCreatorSubmissions CreatorSubmission[] @relation("CreatorSubmissionReviewer")
+  reviewedCreatorSubmissionRevisions CreatorSubmissionRevision[] @relation("CreatorSubmissionRevisionReviewer")
 
   @@index([email])
   @@index([role])
@@ -411,10 +452,99 @@ model CreatorSubmission {
   updatedAt         DateTime                @updatedAt
   creatorProfile    CreatorProfile          @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
   reviewedByUser    User?                   @relation("CreatorSubmissionReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
+  revisions         CreatorSubmissionRevision[]
 
   @@index([creatorProfileId, status, updatedAt])
   @@index([status, submittedAt])
   @@index([reviewedByUserId])
+}
+
+
+/// Immutable metadata snapshot for one identifiable creator submission revision.
+/// Only review state and reviewer fields may change after creation.
+model CreatorSubmissionRevision {
+  id                  String                           @id @default(cuid())
+  creatorSubmissionId String
+  revisionNumber      Int
+  title               String                           @db.VarChar(160)
+  synopsis            String                           @db.VarChar(3000)
+  originalLanguage    String                           @db.VarChar(3)
+  runtimeMinutes      Int
+  releaseYear         Int
+  contentType         CreatorContentType
+  status              CreatorSubmissionRevisionStatus @default(DRAFT)
+  submittedAt         DateTime?
+  reviewedAt          DateTime?
+  reviewedByUserId    String?
+  reviewNotes         String?                          @db.VarChar(1000)
+  createdAt           DateTime                         @default(now())
+  updatedAt           DateTime                         @updatedAt
+
+  creatorSubmission   CreatorSubmission               @relation(fields: [creatorSubmissionId], references: [id], onDelete: Cascade)
+  reviewedByUser      User?                            @relation("CreatorSubmissionRevisionReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
+  uploadIntents       UploadIntent[]
+  mediaAssetVersions  MediaAssetVersion[]
+
+  @@unique([creatorSubmissionId, revisionNumber])
+  @@index([status, submittedAt])
+  @@index([reviewedByUserId])
+}
+
+/// Provider-neutral, single-use authorization intent metadata.
+/// Never store upload URLs, signed capabilities, API tokens, or credentials here.
+model UploadIntent {
+  id                   String             @id @default(cuid())
+  submissionRevisionId String
+  mediaRole            CreatorMediaRole
+  status               UploadIntentStatus @default(PENDING)
+  idempotencyKey       String             @db.VarChar(128)
+  maxFileSizeBytes     BigInt
+  allowedMimeTypes     String[]
+  maxDurationSeconds   Int?
+  expiresAt            DateTime
+  authorizedAt         DateTime?
+  completedAt          DateTime?
+  consumedAt           DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  submissionRevision   CreatorSubmissionRevision @relation(fields: [submissionRevisionId], references: [id], onDelete: Cascade)
+  assetVersion         MediaAssetVersion?
+
+  @@unique([submissionRevisionId, idempotencyKey])
+  @@unique([id, submissionRevisionId])
+  @@index([submissionRevisionId, status, expiresAt])
+  @@index([status, expiresAt])
+}
+
+/// Immutable, quarantined source-file facts and opaque private storage reference.
+/// This model intentionally contains no public URL or playback manifest.
+model MediaAssetVersion {
+  id                   String                  @id @default(cuid())
+  submissionRevisionId String
+  uploadIntentId       String                  @unique
+  versionNumber        Int
+  status               MediaAssetVersionStatus @default(QUARANTINED)
+  sourceSha256         String                  @db.Char(64)
+  fileSizeBytes        BigInt
+  detectedMimeType     String                  @db.VarChar(127)
+  durationSeconds      Int?
+  widthPixels          Int?
+  heightPixels         Int?
+  storageProvider      String?                 @db.VarChar(64)
+  storageAssetRef      String?                 @db.VarChar(512)
+  quarantinedAt        DateTime                @default(now())
+  validatedAt          DateTime?
+  removedAt            DateTime?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  submissionRevision   CreatorSubmissionRevision @relation(fields: [submissionRevisionId], references: [id], onDelete: Cascade)
+  uploadIntent         UploadIntent              @relation(fields: [uploadIntentId, submissionRevisionId], references: [id, submissionRevisionId], onDelete: Cascade)
+
+  @@unique([submissionRevisionId, versionNumber])
+  @@index([submissionRevisionId, status, createdAt])
+  @@index([status, createdAt])
 }
 
 model Review {
