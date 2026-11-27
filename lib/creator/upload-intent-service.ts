@@ -195,7 +195,8 @@ export async function createUploadIntentInTransaction(
 
 export function isUploadIntentExpired(intent: Pick<SafeUploadIntent, "status" | "expiresAt">, now = new Date()): boolean {
   return (
-    (intent.status === UploadIntentStatus.PENDING || intent.status === UploadIntentStatus.AUTHORIZED) &&
-    intent.expiresAt.getTime() <= now.getTime()
+    intent.status === UploadIntentStatus.EXPIRED ||
+    ((intent.status === UploadIntentStatus.PENDING || intent.status === UploadIntentStatus.AUTHORIZED) &&
+      intent.expiresAt.getTime() <= now.getTime())
   );
 }
