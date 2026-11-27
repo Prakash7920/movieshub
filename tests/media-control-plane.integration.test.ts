@@ -238,7 +238,7 @@ test("revision snapshots, upload intents and asset versions are revision-scoped 
   const secondIntent = await createUploadIntent(revisionOneId!, `intent-second-${suffix}`);
   await assert.rejects(() => prismaTest.mediaAssetVersion.create({
     data: assetData({
-      revisionId: revisionOneId,
+      revisionId: revisionOneId!,
       uploadIntentId: secondIntent.id,
       versionNumber: 1,
     }),
