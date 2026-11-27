@@ -235,7 +235,7 @@ test("revision snapshots, upload intents and asset versions are revision-scoped 
     }),
   }));
 
-  const secondIntent = await createUploadIntent(revisionOneId, `intent-second-${suffix}`);
+  const secondIntent = await createUploadIntent(revisionOneId!, `intent-second-${suffix}`);
   await assert.rejects(() => prismaTest.mediaAssetVersion.create({
     data: assetData({
       revisionId: revisionOneId,
@@ -244,10 +244,10 @@ test("revision snapshots, upload intents and asset versions are revision-scoped 
     }),
   }));
 
-  const mismatchedIntent = await createUploadIntent(revisionOneId, `intent-mismatch-${suffix}`);
+  const mismatchedIntent = await createUploadIntent(revisionOneId!, `intent-mismatch-${suffix}`);
   await assert.rejects(() => prismaTest.mediaAssetVersion.create({
     data: assetData({
-      revisionId: revisionTwoId,
+      revisionId: revisionTwoId!,
       uploadIntentId: mismatchedIntent.id,
       versionNumber: 1,
     }),
