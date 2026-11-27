@@ -66,6 +66,12 @@ export async function GET(request: Request) {
           id: true, title: true, synopsis: true, originalLanguage: true, runtimeMinutes: true,
           releaseYear: true, contentType: true, status: true, submittedAt: true,
           creatorProfile: { select: { id: true, publicName: true, user: { select: { email: true } } } },
+          revisions: {
+            where: { status: "SUBMITTED" },
+            orderBy: { revisionNumber: "desc" },
+            take: 1,
+            select: { id: true, revisionNumber: true, status: true, submittedAt: true },
+          },
         },
       }),
     ]);
@@ -112,19 +118,55 @@ export async function PATCH(request: Request) {
         return { kind: "UPDATED" as const, resource: profile };
       }
 
-      const current = await tx.creatorSubmission.findUnique({ where: { id: parsed.data.id }, select: { id: true, status: true } });
+      const current = await tx.creatorSubmission.findUnique({
+        where: { id: parsed.data.id },
+        select: {
+          id: true,
+          status: true,
+          revisions: {
+            where: { status: "SUBMITTED" },
+            orderBy: { revisionNumber: "desc" },
+            take: 1,
+            select: { id: true, revisionNumber: true, status: true },
+          },
+        },
+      });
       if (!current) return { kind: "NOT_FOUND" as const };
       if (current.status !== "SUBMITTED") return { kind: "LOCKED" as const };
+      const submittedRevision = current.revisions[0];
       const submission = await tx.creatorSubmission.update({
         where: { id: current.id },
         data: { status: parsed.data.status, reviewedAt: new Date(), reviewedByUserId: auth.userId, reviewNotes: parsed.data.notes },
         select: { id: true, title: true, status: true },
       });
+      if (submittedRevision) {
+        const reviewedRevision = await tx.creatorSubmissionRevision.update({
+          where: { id: submittedRevision.id },
+          data: {
+            status: parsed.data.status,
+            reviewedAt: new Date(),
+            reviewedByUserId: auth.userId,
+            reviewNotes: parsed.data.notes,
+          },
+          select: { id: true, revisionNumber: true, status: true },
+        });
+        await writeAdminAuditEvent(tx, {
+          actorUserId: auth.userId,
+          action: `CREATOR_SUBMISSION_REVISION_${parsed.data.status}`,
+          resourceType: "CreatorSubmissionRevision",
+          resourceId: reviewedRevision.id,
+          metadata: { creatorSubmissionId: submission.id, revisionNumber: reviewedRevision.revisionNumber },
+        });
+      }
+
       await writeAdminAuditEvent(tx, {
         actorUserId: auth.userId,
         action: `CREATOR_SUBMISSION_${parsed.data.status}`,
         resourceType: "CreatorSubmission",
         resourceId: submission.id,
+        metadata: submittedRevision
+          ? { revisionId: submittedRevision.id, revisionNumber: submittedRevision.revisionNumber }
+          : { legacySubmissionWithoutRevision: true },
       });
       return { kind: "UPDATED" as const, resource: submission };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
