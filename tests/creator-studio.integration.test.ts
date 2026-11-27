@@ -197,7 +197,8 @@ test("creator application, metadata submission and admin review are ownership-sc
     resourceType: "CREATOR_PROFILE",
     id: creatorTwoProfileId!,
     status: "APPROVED",
-    notes: "Creator application reviewed and accepted.",
+    ageVerificationReviewed: true,
+    notes: "18+ eligibility independently checked through the approved restricted process.",
   })));
   assert.equal(approveTwo.status, 200, await approveTwo.clone().text());
 
