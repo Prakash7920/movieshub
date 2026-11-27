@@ -335,7 +335,7 @@ export async function PATCH(request: Request) {
         return { kind: "SAVED" as const, submission: saved, revision };
       }
 
-      let revision;
+      let revision: Prisma.CreatorSubmissionRevisionGetPayload<{ select: typeof revisionResponseSelect }>;
       if (!latestRevision) {
         revision = await tx.creatorSubmissionRevision.create({
           data: {
