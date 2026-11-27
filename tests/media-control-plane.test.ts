@@ -47,13 +47,19 @@ async function createUploadIntent(revisionId: string, key: string) {
 }
 
 async function completeUploadIntent(id: string) {
-  const now = new Date();
+  const authorizedAt = new Date();
+  await prismaTest.uploadIntent.update({
+    where: { id },
+    data: {
+      status: UploadIntentStatus.AUTHORIZED,
+      authorizedAt,
+    },
+  });
   return prismaTest.uploadIntent.update({
     where: { id },
     data: {
       status: UploadIntentStatus.COMPLETED,
-      authorizedAt: now,
-      completedAt: now,
+      completedAt: new Date(),
     },
   });
 }
