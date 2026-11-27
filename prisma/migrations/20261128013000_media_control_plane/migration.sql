@@ -218,3 +218,179 @@ CREATE TRIGGER "CreatorSubmissionRevision_snapshot_immutable"
   ON "CreatorSubmissionRevision"
   FOR EACH ROW
   EXECUTE FUNCTION "prevent_creator_submission_revision_snapshot_mutation"();
+
+
+-- Submission revision review-state transitions are forward-only. A material
+-- correction creates a new revision rather than reopening an approved snapshot.
+CREATE FUNCTION "guard_creator_submission_revision_status_transition"()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW."status" IS NOT DISTINCT FROM OLD."status" THEN
+    RETURN NEW;
+  END IF;
+
+  IF NOT (
+    (OLD."status" = 'DRAFT' AND NEW."status" IN ('SUBMITTED', 'WITHDRAWN'))
+    OR (OLD."status" = 'SUBMITTED' AND NEW."status" IN ('NEEDS_CHANGES', 'REJECTED', 'APPROVED_FOR_CATALOGUE', 'WITHDRAWN'))
+    OR (OLD."status" = 'NEEDS_CHANGES' AND NEW."status" IN ('SUBMITTED', 'WITHDRAWN'))
+    OR (OLD."status" = 'APPROVED_FOR_CATALOGUE' AND NEW."status" = 'SUPERSEDED')
+  ) THEN
+    RAISE EXCEPTION 'Invalid creator submission revision status transition: % -> %', OLD."status", NEW."status"
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER "CreatorSubmissionRevision_status_transition_guard"
+  BEFORE UPDATE OF "status" ON "CreatorSubmissionRevision"
+  FOR EACH ROW
+  EXECUTE FUNCTION "guard_creator_submission_revision_status_transition"();
+
+-- Upload capabilities follow a one-way intent lifecycle; consumed/expired/
+-- cancelled/failed intents cannot be re-authorized.
+CREATE FUNCTION "guard_upload_intent_status_transition"()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW."status" IS NOT DISTINCT FROM OLD."status" THEN
+    RETURN NEW;
+  END IF;
+
+  IF NOT (
+    (OLD."status" = 'PENDING' AND NEW."status" IN ('AUTHORIZED', 'EXPIRED', 'CANCELLED', 'FAILED'))
+    OR (OLD."status" = 'AUTHORIZED' AND NEW."status" IN ('COMPLETED', 'EXPIRED', 'CANCELLED', 'FAILED'))
+    OR (OLD."status" = 'COMPLETED' AND NEW."status" IN ('CONSUMED', 'FAILED'))
+  ) THEN
+    RAISE EXCEPTION 'Invalid upload intent status transition: % -> %', OLD."status", NEW."status"
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER "UploadIntent_status_transition_guard"
+  BEFORE UPDATE OF "status" ON "UploadIntent"
+  FOR EACH ROW
+  EXECUTE FUNCTION "guard_upload_intent_status_transition"();
+
+-- Only a successfully completed upload intent can mint a quarantined asset row.
+CREATE FUNCTION "require_completed_upload_intent_for_asset"()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  intent_status "UploadIntentStatus";
+BEGIN
+  SELECT "status" INTO intent_status
+  FROM "UploadIntent"
+  WHERE "id" = NEW."uploadIntentId"
+    AND "submissionRevisionId" = NEW."submissionRevisionId";
+
+  IF intent_status IS NULL OR intent_status NOT IN ('COMPLETED', 'CONSUMED') THEN
+    RAISE EXCEPTION 'Media asset version requires a completed matching upload intent'
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER "MediaAssetVersion_completed_intent_guard"
+  BEFORE INSERT ON "MediaAssetVersion"
+  FOR EACH ROW
+  EXECUTE FUNCTION "require_completed_upload_intent_for_asset"();
+
+-- File identity and detected source facts never change in place. A changed
+-- source is represented by a new MediaAssetVersion.
+CREATE FUNCTION "prevent_media_asset_version_fact_mutation"()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF ROW(
+    NEW."submissionRevisionId",
+    NEW."uploadIntentId",
+    NEW."versionNumber",
+    NEW."sourceSha256",
+    NEW."fileSizeBytes",
+    NEW."detectedMimeType",
+    NEW."durationSeconds",
+    NEW."widthPixels",
+    NEW."heightPixels",
+    NEW."storageProvider",
+    NEW."storageAssetRef",
+    NEW."quarantinedAt",
+    NEW."createdAt"
+  ) IS DISTINCT FROM ROW(
+    OLD."submissionRevisionId",
+    OLD."uploadIntentId",
+    OLD."versionNumber",
+    OLD."sourceSha256",
+    OLD."fileSizeBytes",
+    OLD."detectedMimeType",
+    OLD."durationSeconds",
+    OLD."widthPixels",
+    OLD."heightPixels",
+    OLD."storageProvider",
+    OLD."storageAssetRef",
+    OLD."quarantinedAt",
+    OLD."createdAt"
+  ) THEN
+    RAISE EXCEPTION 'Media asset version source facts are immutable'
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER "MediaAssetVersion_source_facts_immutable"
+  BEFORE UPDATE OF
+    "submissionRevisionId",
+    "uploadIntentId",
+    "versionNumber",
+    "sourceSha256",
+    "fileSizeBytes",
+    "detectedMimeType",
+    "durationSeconds",
+    "widthPixels",
+    "heightPixels",
+    "storageProvider",
+    "storageAssetRef",
+    "quarantinedAt",
+    "createdAt"
+  ON "MediaAssetVersion"
+  FOR EACH ROW
+  EXECUTE FUNCTION "prevent_media_asset_version_fact_mutation"();
+
+-- Asset-processing status transitions are explicit; terminal states do not
+-- re-open. Takedown only moves toward physical/logical removal.
+CREATE FUNCTION "guard_media_asset_version_status_transition"()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW."status" IS NOT DISTINCT FROM OLD."status" THEN
+    RETURN NEW;
+  END IF;
+
+  IF NOT (
+    (OLD."status" = 'QUARANTINED' AND NEW."status" IN ('PROCESSING', 'REJECTED', 'FAILED', 'TAKEDOWN_PENDING'))
+    OR (OLD."status" = 'PROCESSING' AND NEW."status" IN ('TECHNICAL_REVIEW', 'REJECTED', 'FAILED', 'TAKEDOWN_PENDING'))
+    OR (OLD."status" = 'TECHNICAL_REVIEW' AND NEW."status" IN ('READY_FOR_REVIEW', 'REJECTED', 'FAILED', 'TAKEDOWN_PENDING'))
+    OR (OLD."status" = 'READY_FOR_REVIEW' AND NEW."status" IN ('REJECTED', 'TAKEDOWN_PENDING'))
+    OR (OLD."status" = 'TAKEDOWN_PENDING' AND NEW."status" = 'REMOVED')
+  ) THEN
+    RAISE EXCEPTION 'Invalid media asset version status transition: % -> %', OLD."status", NEW."status"
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER "MediaAssetVersion_status_transition_guard"
+  BEFORE UPDATE OF "status" ON "MediaAssetVersion"
+  FOR EACH ROW
+  EXECUTE FUNCTION "guard_media_asset_version_status_transition"();
