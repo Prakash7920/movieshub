@@ -145,10 +145,17 @@ test("approved creator can save and submit metadata without creating or publishi
   await page.getByRole("button", { name: "Save private draft" }).click();
   await expect(page.getByRole("status")).toContainText("Private draft saved. It is not published or playable.");
 
+  card = page.locator("article").filter({ hasText: revisedTitle });
+  await expect(card.getByText("Revision history")).toBeVisible();
+  await expect(card.getByText("v1 · WITHDRAWN")).toBeVisible();
+  await expect(card.getByText("v2 · DRAFT")).toBeVisible();
+
   await page.getByRole("button", { name: "Submit for review" }).click();
   await expect(page.getByRole("status")).toContainText("Metadata submitted for admin review.");
   card = page.locator("article").filter({ hasText: revisedTitle });
   await expect(card.getByText("SUBMITTED", { exact: true })).toBeVisible();
+  await expect(card.getByText("v1 · WITHDRAWN")).toBeVisible();
+  await expect(card.getByText("v2 · SUBMITTED")).toBeVisible();
 
   const saved = await prisma.creatorSubmission.findMany({
     where: { creatorProfileId: profile.id },
