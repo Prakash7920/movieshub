@@ -136,6 +136,8 @@ CREATE INDEX "UploadIntent_status_expiresAt_idx"
 
 CREATE UNIQUE INDEX "MediaAssetVersion_uploadIntentId_key"
   ON "MediaAssetVersion"("uploadIntentId");
+CREATE UNIQUE INDEX "MediaAssetVersion_uploadIntentId_submissionRevisionId_key"
+  ON "MediaAssetVersion"("uploadIntentId", "submissionRevisionId");
 CREATE UNIQUE INDEX "MediaAssetVersion_submissionRevisionId_versionNumber_key"
   ON "MediaAssetVersion"("submissionRevisionId", "versionNumber");
 CREATE INDEX "MediaAssetVersion_submissionRevisionId_status_createdAt_idx"
