@@ -136,6 +136,9 @@ export async function createUploadIntentInTransaction(
       JSON.stringify(existing.allowedMimeTypes) === JSON.stringify(policy.allowedMimeTypes);
 
     if (!sameRequest) return { kind: "IDEMPOTENCY_CONFLICT" };
+    if (existing.status === UploadIntentStatus.EXPIRED) {
+      return { kind: "EXPIRED", intent: existing };
+    }
 
     const isExpirable =
       existing.status === UploadIntentStatus.PENDING ||
