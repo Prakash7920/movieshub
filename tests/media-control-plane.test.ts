@@ -46,6 +46,18 @@ async function createUploadIntent(revisionId: string, key: string) {
   });
 }
 
+async function completeUploadIntent(id: string) {
+  const now = new Date();
+  return prismaTest.uploadIntent.update({
+    where: { id },
+    data: {
+      status: UploadIntentStatus.COMPLETED,
+      authorizedAt: now,
+      completedAt: now,
+    },
+  });
+}
+
 function assetData(input: {
   revisionId: string;
   uploadIntentId: string;
@@ -127,8 +139,6 @@ before(async () => {
       creatorSubmissionId: creatorSubmissionId!,
       revisionNumber: 1,
       ...revisionMetadata("Control Plane Test Submission"),
-      status: CreatorSubmissionRevisionStatus.SUBMITTED,
-      submittedAt: new Date(),
     },
     select: { id: true },
   });
@@ -186,6 +196,28 @@ test("revision snapshots, upload intents and asset versions are revision-scoped 
     "REJECTED", "TAKEDOWN_PENDING", "REMOVED", "FAILED",
   ]);
 
+  const initialRevision = await prismaTest.creatorSubmissionRevision.findUnique({
+    where: { id: revisionOneId },
+    select: { status: true },
+  });
+  assert.equal(initialRevision?.status, CreatorSubmissionRevisionStatus.DRAFT);
+  await prismaTest.creatorSubmissionRevision.update({
+    where: { id: revisionOneId },
+    data: { status: CreatorSubmissionRevisionStatus.SUBMITTED, submittedAt: new Date() },
+  });
+  await prismaTest.creatorSubmissionRevision.update({
+    where: { id: revisionOneId },
+    data: { status: CreatorSubmissionRevisionStatus.NEEDS_CHANGES },
+  });
+  await prismaTest.creatorSubmissionRevision.update({
+    where: { id: revisionOneId },
+    data: { status: CreatorSubmissionRevisionStatus.SUBMITTED },
+  });
+  await assert.rejects(() => prismaTest.creatorSubmissionRevision.update({
+    where: { id: revisionOneId! },
+    data: { status: CreatorSubmissionRevisionStatus.DRAFT },
+  }));
+
   const snapshot = await prismaTest.creatorSubmissionRevision.findUnique({
     where: { id: revisionOneId },
     include: { creatorSubmission: { select: { creatorProfile: { select: { userId: true } } } } },
@@ -211,6 +243,27 @@ test("revision snapshots, upload intents and asset versions are revision-scoped 
   assert.deepEqual(intent.allowedMimeTypes, ["video/mp4"]);
 
   await assert.rejects(() => createUploadIntent(revisionOneId!, `intent-${suffix}`));
+  await assert.rejects(() => prismaTest.mediaAssetVersion.create({
+    data: assetData({
+      revisionId: revisionOneId!,
+      uploadIntentId: intent.id,
+      versionNumber: 99,
+    }),
+  }));
+
+  const authorizedAt = new Date();
+  await prismaTest.uploadIntent.update({
+    where: { id: intent.id },
+    data: { status: UploadIntentStatus.AUTHORIZED, authorizedAt },
+  });
+  await assert.rejects(() => prismaTest.uploadIntent.update({
+    where: { id: intent.id },
+    data: { status: UploadIntentStatus.PENDING },
+  }));
+  await prismaTest.uploadIntent.update({
+    where: { id: intent.id },
+    data: { status: UploadIntentStatus.COMPLETED, completedAt: new Date() },
+  });
 
   const asset = await prismaTest.mediaAssetVersion.create({
     data: assetData({
@@ -223,9 +276,47 @@ test("revision snapshots, upload intents and asset versions are revision-scoped 
   mediaAssetVersionOneId = asset.id;
   assert.equal(asset.status, MediaAssetVersionStatus.QUARANTINED);
   assert.equal(asset.uploadIntent.submissionRevisionId, revisionOneId);
-  assert.equal(asset.uploadIntent.status, UploadIntentStatus.PENDING);
+  assert.equal(asset.uploadIntent.status, UploadIntentStatus.COMPLETED);
   assert.equal(asset.storageProvider, null);
   assert.equal(asset.storageAssetRef, null);
+
+  await prismaTest.mediaAssetVersion.update({
+    where: { id: asset.id },
+    data: { status: MediaAssetVersionStatus.PROCESSING },
+  });
+  await prismaTest.mediaAssetVersion.update({
+    where: { id: asset.id },
+    data: { status: MediaAssetVersionStatus.TECHNICAL_REVIEW, validatedAt: new Date() },
+  });
+  await prismaTest.mediaAssetVersion.update({
+    where: { id: asset.id },
+    data: { status: MediaAssetVersionStatus.READY_FOR_REVIEW },
+  });
+  await assert.rejects(() => prismaTest.mediaAssetVersion.update({
+    where: { id: asset.id },
+    data: { status: MediaAssetVersionStatus.PROCESSING },
+  }));
+  await assert.rejects(() => prismaTest.mediaAssetVersion.update({
+    where: { id: asset.id },
+    data: { sourceSha256: "b".repeat(64) },
+  }));
+  await prismaTest.mediaAssetVersion.update({
+    where: { id: asset.id },
+    data: { status: MediaAssetVersionStatus.TAKEDOWN_PENDING },
+  });
+  await prismaTest.mediaAssetVersion.update({
+    where: { id: asset.id },
+    data: { status: MediaAssetVersionStatus.REMOVED, removedAt: new Date() },
+  });
+
+  await prismaTest.uploadIntent.update({
+    where: { id: intent.id },
+    data: { status: UploadIntentStatus.CONSUMED, consumedAt: new Date() },
+  });
+  await assert.rejects(() => prismaTest.uploadIntent.update({
+    where: { id: intent.id },
+    data: { status: UploadIntentStatus.AUTHORIZED },
+  }));
 
   await assert.rejects(() => prismaTest.mediaAssetVersion.create({
     data: assetData({
@@ -236,6 +327,7 @@ test("revision snapshots, upload intents and asset versions are revision-scoped 
   }));
 
   const secondIntent = await createUploadIntent(revisionOneId!, `intent-second-${suffix}`);
+  await completeUploadIntent(secondIntent.id);
   await assert.rejects(() => prismaTest.mediaAssetVersion.create({
     data: assetData({
       revisionId: revisionOneId!,
@@ -245,6 +337,7 @@ test("revision snapshots, upload intents and asset versions are revision-scoped 
   }));
 
   const mismatchedIntent = await createUploadIntent(revisionOneId!, `intent-mismatch-${suffix}`);
+  await completeUploadIntent(mismatchedIntent.id);
   await assert.rejects(() => prismaTest.mediaAssetVersion.create({
     data: assetData({
       revisionId: revisionTwoId!,
@@ -287,7 +380,8 @@ test("migration-only guards protect immutable snapshots and quarantined asset fa
     },
   }));
 
-  const badHashIntent = await createUploadIntent(revisionOneId, `bad-hash-${suffix}`);
+  const badHashIntent = await createUploadIntent(revisionOneId!, `bad-hash-${suffix}`);
+  await completeUploadIntent(badHashIntent.id);
   await assert.rejects(() => prismaTest.mediaAssetVersion.create({
     data: assetData({
       revisionId: revisionOneId!,
@@ -297,7 +391,8 @@ test("migration-only guards protect immutable snapshots and quarantined asset fa
     }),
   }));
 
-  const urlRefIntent = await createUploadIntent(revisionOneId, `url-ref-${suffix}`);
+  const urlRefIntent = await createUploadIntent(revisionOneId!, `url-ref-${suffix}`);
+  await completeUploadIntent(urlRefIntent.id);
   await assert.rejects(() => prismaTest.mediaAssetVersion.create({
     data: assetData({
       revisionId: revisionOneId!,
@@ -308,7 +403,8 @@ test("migration-only guards protect immutable snapshots and quarantined asset fa
     }),
   }));
 
-  const notValidatedIntent = await createUploadIntent(revisionOneId, `not-validated-${suffix}`);
+  const notValidatedIntent = await createUploadIntent(revisionOneId!, `not-validated-${suffix}`);
+  await completeUploadIntent(notValidatedIntent.id);
   await assert.rejects(() => prismaTest.mediaAssetVersion.create({
     data: assetData({
       revisionId: revisionOneId!,
