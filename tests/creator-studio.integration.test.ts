@@ -54,12 +54,16 @@ function adminReviewRequest(body: Record<string, unknown>) {
   return jsonRequest(url, "PATCH", body);
 }
 
-async function asApi<T>(userId: string | null, callback: () => Promise<T>): Promise<T> {
-  return runWithApiSessionForIntegrationTest(userId ? { user: { id: userId } } : null, callback);
+async function asApi(userId: string | null, callback: () => Promise<Response | undefined>): Promise<Response> {
+  const response = await runWithApiSessionForIntegrationTest(userId ? { user: { id: userId } } : null, callback);
+  assert.ok(response, "creator API route must return a response");
+  return response;
 }
 
-async function asAdmin<T>(userId: string | null, callback: () => Promise<T>): Promise<T> {
-  return runWithAdminSessionForIntegrationTest(userId ? { user: { id: userId } } : null, callback);
+async function asAdmin(userId: string | null, callback: () => Promise<Response | undefined>): Promise<Response> {
+  const response = await runWithAdminSessionForIntegrationTest(userId ? { user: { id: userId } } : null, callback);
+  assert.ok(response, "admin API route must return a response");
+  return response;
 }
 
 const metadata = (title: string) => ({
