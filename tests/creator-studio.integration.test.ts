@@ -231,6 +231,19 @@ test("creator application, metadata submission and admin review are ownership-sc
   assert.equal(savedDraftData.revision.revisionNumber, 2);
   assert.equal(savedDraftData.revision.status, "DRAFT");
 
+  const repeatedUnchangedSave = await asApi(creatorOneId, () => updateCreatorSubmission(submissionRequest("PATCH", {
+    action: "SAVE_DRAFT",
+    id: submissionOneId!,
+    ...metadata("Creator One Updated Short Film"),
+  })));
+  assert.equal(repeatedUnchangedSave.status, 200, await repeatedUnchangedSave.clone().text());
+  const repeatedSaveData = await repeatedUnchangedSave.json() as {
+    revision: { id: string; revisionNumber: number; status: string };
+  };
+  assert.equal(repeatedSaveData.revision.id, savedDraftData.revision.id);
+  assert.equal(repeatedSaveData.revision.revisionNumber, 2);
+  assert.equal(repeatedSaveData.revision.status, "DRAFT");
+
   const revisionHistoryAfterSave = await prismaTest.creatorSubmissionRevision.findMany({
     where: { creatorSubmissionId: submissionOneId! },
     orderBy: { revisionNumber: "asc" },
