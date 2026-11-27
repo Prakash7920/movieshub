@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     if ("error" in account) return account.error;
     const ip = getClientIp(request.headers);
     try {
-      const userLimit = await consumeRateLimit("creator-application-user", account.user.id, 3, 60 * 60);
+      const userLimit = await consumeRateLimit("creator-application-user", account.user.id, 8, 60 * 60);
       const ipLimit = ip ? await consumeRateLimit("creator-application-ip", ip, 10, 60 * 60) : { allowed: true, retryAfterSeconds: 3600 };
       if (!userLimit.allowed || !ipLimit.allowed) {
         return NextResponse.json({ error: "Too many creator application attempts. Try again later." }, {
