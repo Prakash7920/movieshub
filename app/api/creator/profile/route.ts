@@ -15,6 +15,7 @@ const PRIVATE_HEADERS = { "Cache-Control": "private, no-store, max-age=0" };
 const applicationSchema = z.object({
   publicName: z.string().trim().min(2).max(80),
   bio: z.string().trim().max(500).optional().default(""),
+  adultEligibilityConfirmed: z.literal(true),
 }).strict();
 
 async function getAccount() {
@@ -37,7 +38,7 @@ export async function GET() {
     if ("error" in account) return account.error;
     const creatorProfile = await prisma.creatorProfile.findUnique({
       where: { userId: account.user.id },
-      select: { id: true, publicName: true, bio: true, status: true, appliedAt: true, reviewedAt: true, reviewNotes: true },
+      select: { id: true, publicName: true, bio: true, adultEligibilityConfirmed: true, status: true, appliedAt: true, reviewedAt: true, reviewNotes: true },
     });
     return NextResponse.json({ creatorProfile }, { headers: PRIVATE_HEADERS });
   } catch (error) {
@@ -88,9 +89,10 @@ export async function POST(request: Request) {
           userId: account.user.id,
           publicName: parsed.data.publicName,
           bio: parsed.data.bio || null,
+          adultEligibilityConfirmed: parsed.data.adultEligibilityConfirmed,
           status: "PENDING",
         },
-        select: { id: true, publicName: true, bio: true, status: true, appliedAt: true },
+        select: { id: true, publicName: true, bio: true, adultEligibilityConfirmed: true, status: true, appliedAt: true },
       });
       await writeAdminAuditEvent(tx, {
         actorUserId: account.user.id,
