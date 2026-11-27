@@ -1,6 +1,5 @@
 import {
   CreatorMediaRole,
-  MediaAssetVersionStatus,
   Prisma,
   UploadIntentStatus,
 } from "@prisma/client";
@@ -196,8 +195,4 @@ export function isUploadIntentExpired(intent: Pick<SafeUploadIntent, "status" | 
     (intent.status === UploadIntentStatus.PENDING || intent.status === UploadIntentStatus.AUTHORIZED) &&
     intent.expiresAt.getTime() <= now.getTime()
   );
-}
-
-export function isSafeQuarantinedMediaStatus(status: MediaAssetVersionStatus): boolean {
-  return status === MediaAssetVersionStatus.QUARANTINED;
 }
