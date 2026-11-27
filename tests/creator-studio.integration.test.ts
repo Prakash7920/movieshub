@@ -176,11 +176,20 @@ test("creator application, metadata submission and admin review are ownership-sc
   const queueData = await queueBeforeApproval.json() as { creatorProfiles: Array<{ id: string }> };
   assert.ok(queueData.creatorProfiles.some(item => item.id === creatorOneProfileId));
 
-  const approveOne = await asAdmin(adminId, () => reviewAdminCreatorItem(adminReviewRequest({
+  const approveWithoutAgeReview = await asAdmin(adminId, () => reviewAdminCreatorItem(adminReviewRequest({
     resourceType: "CREATOR_PROFILE",
     id: creatorOneProfileId!,
     status: "APPROVED",
     notes: "Creator application reviewed and accepted.",
+  })));
+  assert.equal(approveWithoutAgeReview.status, 400);
+
+  const approveOne = await asAdmin(adminId, () => reviewAdminCreatorItem(adminReviewRequest({
+    resourceType: "CREATOR_PROFILE",
+    id: creatorOneProfileId!,
+    status: "APPROVED",
+    ageVerificationReviewed: true,
+    notes: "18+ eligibility independently checked through the approved restricted process.",
   })));
   assert.equal(approveOne.status, 200, await approveOne.clone().text());
 
