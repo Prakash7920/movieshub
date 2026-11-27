@@ -6,6 +6,7 @@ type CreatorApplication = {
   id: string;
   publicName: string;
   bio: string | null;
+  adultEligibilityConfirmed: boolean;
   status: string;
   appliedAt: string;
   user: { email: string };
@@ -91,6 +92,7 @@ export default function AdminCreators() {
                     <h4 className="font-semibold text-white">{item.publicName}</h4>
                     <p className="mt-1 text-xs text-gray-400">{item.user.email} · Applied {new Date(item.appliedAt).toLocaleDateString()}</p>
                     <p className="mt-3 text-sm text-gray-300">{item.bio || "No bio supplied."}</p>
+                    <p className="mt-2 text-xs text-gray-400">18+ self-declaration: {item.adultEligibilityConfirmed ? "Confirmed" : "Not confirmed — approval blocked"}</p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <button disabled={busyId === item.id} onClick={() => void review("CREATOR_PROFILE", item.id, "APPROVED")} className="rounded-full bg-green-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Approve creator</button>
                       <button disabled={busyId === item.id} onClick={() => void review("CREATOR_PROFILE", item.id, "REJECTED")} className="rounded-full border border-red-400/40 px-4 py-2 text-xs font-semibold text-red-200 disabled:opacity-50">Reject</button>
