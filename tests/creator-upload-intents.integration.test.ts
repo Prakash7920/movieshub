@@ -374,6 +374,26 @@ test("internal upload-intent service applies server policy, idempotency and expi
     true,
   );
 
+  const statusResponse = await asApi(creatorOneId!, () =>
+    getUploadIntentsRoute(listRequest(approvedRevisionId!)),
+  );
+  assert.equal(statusResponse.status, 200);
+  const statusPayload = await statusResponse.json() as {
+    uploadIntents: Array<{
+      id: string;
+      status: string;
+      maxFileSizeBytes: string;
+      isExpired: boolean;
+      uploadUrl?: string;
+    }>;
+  };
+  const statusItem = statusPayload.uploadIntents.find(item => item.id === created.intent.id);
+  assert.ok(statusItem);
+  assert.equal(statusItem.status, UploadIntentStatus.EXPIRED);
+  assert.equal(statusItem.maxFileSizeBytes, (4n * 1024n * 1024n * 1024n).toString());
+  assert.equal(statusItem.isExpired, true);
+  assert.equal(statusItem.uploadUrl, undefined);
+
   assert.equal(await prismaTest.adminAuditLog.count({
     where: {
       resourceType: "UploadIntent",
