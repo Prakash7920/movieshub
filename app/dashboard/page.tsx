@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth/next";
-import { ArrowRight, Bookmark, History, Settings2, ShieldCheck } from "lucide-react";
+import { ArrowRight, Bookmark, Clapperboard, History, Settings2, ShieldCheck } from "lucide-react";
 import { WatchlistContent } from "@/components/movies/watchlist";
 import { authOptions } from "@/lib/auth-options";
 import { getUserEntitlements } from "@/lib/subscriptions/entitlements";
@@ -78,6 +78,7 @@ export default async function DashboardPage() {
         <DashboardCard href="/dashboard/watchlist" icon={<Bookmark className="h-5 w-5" />} title={<LocalizedText k="myWatchlist" />} description={<LocalizedText k="watchlistCardDescription" />} />
         <DashboardCard href="/dashboard/history" icon={<History className="h-5 w-5" />} title={<LocalizedText k="watchHistory" />} description={<LocalizedText k="historyCardDescription" />} />
         <DashboardCard href="/dashboard/settings" icon={<Settings2 className="h-5 w-5" />} title={<LocalizedText k="settings" />} description={<LocalizedText k="settingsCardDescription" />} />
+        <DashboardCard href="/creator/studio" icon={<Clapperboard className="h-5 w-5" />} title="Creator Studio" description="Apply to become a creator and submit original film metadata for review." />
       </div>
       <section className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-7">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
