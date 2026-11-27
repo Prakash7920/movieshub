@@ -52,6 +52,11 @@ export default function AdminCreators() {
   useEffect(() => { void load(); }, [load]);
 
   async function review(resourceType: "CREATOR_PROFILE" | "CREATOR_SUBMISSION", id: string, status: string) {
+    let ageVerificationReviewed = false;
+    if (resourceType === "CREATOR_PROFILE" && status === "APPROVED") {
+      ageVerificationReviewed = window.confirm("Confirm that you independently checked this creator's 18+ eligibility using NexaFilm's approved restricted process. Do not upload or store identity documents in this review form.");
+      if (!ageVerificationReviewed) return;
+    }
     const notes = window.prompt("Enter a review note (required):");
     if (!notes || notes.trim().length < 3) return;
     setBusyId(id);
@@ -61,7 +66,7 @@ export default function AdminCreators() {
       const response = await fetch("/api/admin/creators", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resourceType, id, status, notes: notes.trim() }),
+        body: JSON.stringify({ resourceType, id, status, notes: notes.trim(), ...(ageVerificationReviewed ? { ageVerificationReviewed: true } : {}) }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Unable to save review decision.");
