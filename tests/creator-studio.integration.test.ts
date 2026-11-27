@@ -120,37 +120,45 @@ after(async () => {
 });
 
 test("creator application, metadata submission and admin review are ownership-scoped and never publish media", async () => {
-  const unauthenticated = await asApi(null, () => applyCreatorProfile(profileRequest({ publicName: "Unauthenticated Creator" })));
+  const unauthenticated = await asApi(null, () => applyCreatorProfile(profileRequest({ publicName: "Unauthenticated Creator", adultEligibilityConfirmed: true })));
   assert.equal(unauthenticated.status, 401);
 
-  const unverified = await asApi(unverifiedId, () => applyCreatorProfile(profileRequest({ publicName: "Unverified Creator" })));
+  const unverified = await asApi(unverifiedId, () => applyCreatorProfile(profileRequest({ publicName: "Unverified Creator", adultEligibilityConfirmed: true })));
   assert.equal(unverified.status, 403);
 
-  const banned = await asApi(bannedId, () => applyCreatorProfile(profileRequest({ publicName: "Banned Creator" })));
+  const banned = await asApi(bannedId, () => applyCreatorProfile(profileRequest({ publicName: "Banned Creator", adultEligibilityConfirmed: true })));
   assert.equal(banned.status, 403);
 
-  const crossOrigin = await asApi(creatorOneId, () => applyCreatorProfile(profileRequest({ publicName: "Cross Origin Creator" }, "https://attacker.example")));
+  const crossOrigin = await asApi(creatorOneId, () => applyCreatorProfile(profileRequest({ publicName: "Cross Origin Creator", adultEligibilityConfirmed: true }, "https://attacker.example")));
   assert.equal(crossOrigin.status, 403);
 
   const invalidApplication = await asApi(creatorOneId, () => applyCreatorProfile(profileRequest({
     publicName: "Valid Name",
+    adultEligibilityConfirmed: true,
     unexpectedRole: "ADMIN",
   })));
   assert.equal(invalidApplication.status, 400);
 
+  const missingAdultDeclaration = await asApi(creatorOneId, () => applyCreatorProfile(profileRequest({
+    publicName: "No Adult Declaration",
+    adultEligibilityConfirmed: false,
+  })));
+  assert.equal(missingAdultDeclaration.status, 400);
+
   const applyOne = await asApi(creatorOneId, () => applyCreatorProfile(profileRequest({
     publicName: "Creator One",
     bio: "Independent Tamil filmmaker.",
+    adultEligibilityConfirmed: true,
   })));
   assert.equal(applyOne.status, 201, await applyOne.clone().text());
   const applyOneData = await applyOne.json() as { creatorProfile: { id: string; status: string } };
   creatorOneProfileId = applyOneData.creatorProfile.id;
   assert.equal(applyOneData.creatorProfile.status, "PENDING");
 
-  const duplicateApplication = await asApi(creatorOneId, () => applyCreatorProfile(profileRequest({ publicName: "Creator One Again" })));
+  const duplicateApplication = await asApi(creatorOneId, () => applyCreatorProfile(profileRequest({ publicName: "Creator One Again", adultEligibilityConfirmed: true })));
   assert.equal(duplicateApplication.status, 409);
 
-  const applyTwo = await asApi(creatorTwoId, () => applyCreatorProfile(profileRequest({ publicName: "Creator Two" })));
+  const applyTwo = await asApi(creatorTwoId, () => applyCreatorProfile(profileRequest({ publicName: "Creator Two", adultEligibilityConfirmed: true })));
   assert.equal(applyTwo.status, 201, await applyTwo.clone().text());
   const applyTwoData = await applyTwo.json() as { creatorProfile: { id: string } };
   creatorTwoProfileId = applyTwoData.creatorProfile.id;
