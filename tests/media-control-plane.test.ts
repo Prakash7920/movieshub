@@ -373,6 +373,19 @@ test("migration-only guards protect immutable snapshots and quarantined asset fa
     data: {
       submissionRevisionId: revisionOneId!,
       mediaRole: CreatorMediaRole.PRIMARY_VIDEO,
+      status: UploadIntentStatus.AUTHORIZED,
+      idempotencyKey: `initial-authorized-${suffix}`,
+      maxFileSizeBytes: 10_240n,
+      allowedMimeTypes: ["video/mp4"],
+      expiresAt: new Date(Date.now() + 60_000),
+      authorizedAt: new Date(),
+    },
+  }));
+
+  await assert.rejects(() => prismaTest.uploadIntent.create({
+    data: {
+      submissionRevisionId: revisionOneId!,
+      mediaRole: CreatorMediaRole.PRIMARY_VIDEO,
       idempotencyKey: `zero-size-${suffix}`,
       maxFileSizeBytes: 0n,
       allowedMimeTypes: ["video/mp4"],
@@ -400,6 +413,18 @@ test("migration-only guards protect immutable snapshots and quarantined asset fa
       versionNumber: 11,
       storageProvider: "test-adapter",
       storageAssetRef: "https://example.invalid/public-source.mp4",
+    }),
+  }));
+
+  const initialStateIntent = await createUploadIntent(revisionOneId!, `initial-state-${suffix}`);
+  await completeUploadIntent(initialStateIntent.id);
+  await assert.rejects(() => prismaTest.mediaAssetVersion.create({
+    data: assetData({
+      revisionId: revisionOneId!,
+      uploadIntentId: initialStateIntent.id,
+      versionNumber: 13,
+      status: MediaAssetVersionStatus.PROCESSING,
+      validatedAt: new Date(),
     }),
   }));
 
