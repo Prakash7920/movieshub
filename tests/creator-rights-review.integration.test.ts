@@ -177,11 +177,11 @@ test("C3-I4 requires independent admin review and gates exact revision, role and
 
   const wrongTerritory = await asCreator(creatorId, () => createUploadIntent(request("/api/creator/upload-intents", "POST", creatorIntentBody({
     territoryCode: "US", idempotencyKey: "wrong-territory-" + randomUUID(),
-  })));
+  }))));
   assert.ok(wrongTerritory); assert.equal(wrongTerritory.status, 409);
   const wrongRole = await asCreator(creatorId, () => createUploadIntent(request("/api/creator/upload-intents", "POST", creatorIntentBody({
     mediaRole: "POSTER", idempotencyKey: "wrong-role-" + randomUUID(),
-  })));
+  }))));
   assert.ok(wrongRole); assert.equal(wrongRole.status, 409);
   assert.equal(await prismaTest.uploadIntent.count({ where: { submissionRevisionId: revisionId! } }), 0);
 
