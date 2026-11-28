@@ -38,7 +38,7 @@ function jsonRequest(
   return new Request(url, {
     method,
     headers: { origin, "content-type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ territoryCode: "IN", ...body }),
   });
 }
 
@@ -320,10 +320,14 @@ test("internal upload-intent service applies server policy, idempotency and expi
     actorUserId: creatorOneId!,
     submissionRevisionId: approvedRevisionId!,
     mediaRole: CreatorMediaRole.PRIMARY_VIDEO,
+    territoryCode: "IN",
     idempotencyKey: `service-created-${suffix}`,
   };
   const syntheticTestRightsDecision = {
     allowed: true as const,
+    submissionRevisionId: approvedRevisionId!,
+    territoryCode: "IN",
+    mediaRole: CreatorMediaRole.PRIMARY_VIDEO,
     decisionReference: `synthetic-test-rights-${suffix}`,
     reviewerUserId: adminId!,
   };
@@ -349,7 +353,7 @@ test("internal upload-intent service applies server policy, idempotency and expi
     createUploadIntentInTransaction(
       tx,
       { ...input, mediaRole: CreatorMediaRole.TRAILER },
-      syntheticTestRightsDecision,
+      { ...syntheticTestRightsDecision, mediaRole: CreatorMediaRole.TRAILER },
       new Date(now.getTime() + 2000),
     ),
   );

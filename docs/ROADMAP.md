@@ -345,3 +345,15 @@ NexaFilm is complete only when **all five milestones are PASS** and the followin
 - **C3-I3 result: PASS — Creator Studio revision lifecycle, revision-aware admin review, authenticated UploadIntent create/status API, rate limits, expiry/idempotency, audit and fail-closed rights gate implemented and validated.** No upload URL/capability, media transfer, provider resource, payment, publication or playback was enabled.
 - **Next single task:** C3-I4 — design and implement a separate exact-work/version rights-evidence review record and admin-only decision workflow (restricted evidence reference/hash, rights scope, reviewer identity, approval/rejection, expiry/territory and audit). Keep production UploadIntent creation denied until that independent workflow, the signed rights evidence, and the relevant owner/legal approvals are verified. Do not create upload URLs or transfer media in C3-I4.
 
+
+
+### Phase 5.57 — Creator Work/Version Rights-Evidence Review (C3-I4, 2026-11-28)
+
+- Implemented a separate `CreatorRightsReview` record for one immutable `CreatorSubmissionRevision`, with numbered review sequences, restricted evidence reference + normalized SHA-256, separate owner/legal approval references, rights holder, effective term, territories, languages, and permitted media roles.
+- Added database constraints/triggers for format validation, PENDING-only creation, two-person review, required approval attestations, forward-only terminal decisions and immutable evidence/scope after submission. Downloads remain disabled.
+- Added admin-only `GET/POST/PATCH /api/admin/creator-rights-reviews` and a dedicated Admin rights-review panel. Approval requires a different admin reviewer, actual-evidence inspection, scope confirmation and explicit owner/legal approval confirmations; all decisions are transaction-coupled to append-only audit events.
+- UploadIntent POST now requires an explicit territory and resolves the newest approved rights sequence inside the same serializable transaction. The gate requires exact revision, media role, original language, country, effective term and all upload/hosting/processing/OTT-VOD scopes; missing/expired/mismatched rights remain denied.
+- A new review sequence supersedes older approvals and cancels outstanding PENDING/AUTHORIZED intents for that revision. The allowed path creates only a short-lived PENDING intent; no URL, provider capability, upload route or media transfer was introduced.
+- Implementation details and legal boundary: [creator-work-version-rights-review-v1-2026-11-28.md](creators/creator-work-version-rights-review-v1-2026-11-28.md).
+- Validation: **PENDING** — exact-head fresh-migration and full PR CI must complete before C3-I4 can be marked PASS.
+- No evidence file was uploaded to NexaFilm/GitHub, no real legal rights were approved, and no Neon Preview/Production database, provider, credential, payment, environment or playback setting was changed.

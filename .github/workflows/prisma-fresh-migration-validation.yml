@@ -9,6 +9,7 @@ on:
       - 'prisma/migrations/**'
       - 'prisma/schema.prisma'
       - 'tests/media-control-plane.test.ts'
+      - 'tests/creator-rights-review.integration.test.ts'
       - 'package.json'
       - 'package-lock.json'
   pull_request:
@@ -19,6 +20,7 @@ on:
       - 'prisma/migrations/**'
       - 'prisma/schema.prisma'
       - 'tests/media-control-plane.test.ts'
+      - 'tests/creator-rights-review.integration.test.ts'
       - 'package.json'
       - 'package-lock.json'
   workflow_dispatch:
@@ -103,6 +105,12 @@ jobs:
           MEDIA_CONTROL_PLANE_MIGRATION_TEST: "true"
           RATE_LIMIT_SECRET: ci-only-rate-limit-secret-value-with-more-than-32-characters
         run: npx tsx --test tests/media-control-plane.test.ts
+
+      - name: Exercise creator work/version rights-review workflow
+        env:
+          MOVIESHUB_E2E: "true"
+          RATE_LIMIT_SECRET: ci-only-rate-limit-secret-value-with-more-than-32-characters
+        run: npx tsx --test tests/creator-rights-review.integration.test.ts
 
       - name: Verify migration ledger exactly matches repository migrations
         shell: bash
