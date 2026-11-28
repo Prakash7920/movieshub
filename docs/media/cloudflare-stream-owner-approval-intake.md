@@ -1,0 +1,268 @@
+# Cloudflare Stream Owner Approval & Rights Evidence Intake
+
+- **Checkpoint:** Phase 5.29
+- **Prepared:** 2026-11-21
+- **Branch:** `phase-5/consolidated-security-ops`
+- **State:** **PARTIAL APPROVAL RECORDED — usage-based cost model accepted; account/resource setup and rights evidence remain pending**
+- **Purpose:** Capture the explicit owner decision and the minimum legal/operational evidence required before a non-production Cloudflare Stream proof of concept.
+
+## 1. Current decision state
+
+The user's instruction to start Phase 5.29 authorizes preparation of this intake record only. It is not recorded as consent to usage-based billing, Cloudflare account changes, or media upload.
+
+| Decision | State |
+|---|---|
+| Usage-based cost model for the planned non-production POC (storage + delivery) | **APPROVED — 2026-11-22** |
+| Acknowledgement that budget alerts are not a hard spend cap | **ACKNOWLEDGED — 2026-11-22** |
+| Cloudflare account / Stream resource creation and payment-method setup | **NOT YET AUTHORIZED** |
+| Agreed test window and budget-alert threshold | **NOT SPECIFIED** |
+| Rights-cleared non-production test asset identified | **NOT PROVIDED** |
+| Actual signed agreement / rights statement inspected | **NOT PROVIDED** |
+| Admin licence approval recorded | **NOT PRESENT IN ISOLATED TEST DATABASE** |
+| Provider account / API credential / signing key | **NOT CONFIGURED** |
+| Preview playback flags | **OFF / NOT CONFIGURED** |
+
+## 2. Current published Cloudflare Stream rates
+
+Official Cloudflare Stream pricing documentation (last updated October 27, 2026) describes two billing dimensions:
+- **Storage capacity:** prepaid in increments of **US$5/month per 1,000 minutes of video storage capacity**.
+- **Video delivery:** post-paid, usage-based at **US$1 per 1,000 minutes delivered**.
+- Ingress and encoding are included; no separate bandwidth/egress fee is charged.
+- Delivery is counted from HTTP requests for video segments/parts. Client-side preloading and buffering are billable; cached playback is not billable.
+
+These are published rate-card values, not a quotation or a ceiling. Final charges depend on account billing terms, usage, taxes and any applicable currency conversion.
+
+**Illustrative planning example only:** one 1,000-minute storage-capacity increment held for one month is US$5. If the test session generates 100 billable delivered minutes, the delivery component is US$0.10; the simple subtotal would be US$5.10 before tax/currency conversion. This is not a guaranteed maximum invoice.
+
+Sources:
+- https://developers.cloudflare.com/stream/pricing/
+- https://developers.cloudflare.com/billing/understand/how-billing-works/
+
+## 3. Spending-alert limitation — must be acknowledged
+
+Cloudflare's account-wide Budget Alerts:
+- are available to Pay-as-you-go accounts;
+- send an email after account usage-based spend crosses the configured threshold;
+- are informational only and **do not pause, block, or cap Stream usage**;
+- reset at the next billing period and do not guarantee a maximum invoice amount.
+
+Cloudflare's currently documented product spending limits cover Workers and Durable Objects, not Stream minutes. Therefore, this intake does **not** claim that a Stream-specific hard spending cap is available.
+
+A controlled POC should still limit exposure operationally: one rights-cleared asset only, a small named tester group, no public catalogue or promotion, a short agreed test window, downloads disabled, and immediate manual disablement when the test ends. These measures reduce risk but do not create a contractual or technical invoice ceiling.
+
+Source: https://developers.cloudflare.com/billing/manage/budget-alerts/
+Source: https://developers.cloudflare.com/billing/manage/spend-management/
+
+## 4. Owner decision recorded — 2026-11-22
+
+The owner replied **“Approved buddy start”** to the explicit request for approval of Cloudflare Stream's usage-based charges, with the stated understanding that Cloudflare Budget Alerts are not a hard spending cap.
+
+**Recorded as approved:**
+- Usage-based storage capacity charges at the published rate of US$5/month per 1,000 minutes of capacity.
+- Metered video delivery at the published rate of US$1 per 1,000 minutes delivered.
+- The no-hard-cap limitation: actual charges can exceed any alert threshold.
+- Cost-model approval is limited to the planned **non-production NexaFilm POC** discussed in this checkpoint.
+
+**Not inferred from that response and still pending:**
+- Creation/use of a Cloudflare account or Stream resource and any payment-method setup.
+- A specific test window and budget-alert threshold.
+- Rights clearance, identification of a test asset, and upload authorization.
+
+This approval is not a guaranteed invoice maximum and does not authorize Production use, public playback, or upload of content without documented rights. No provider account, paid resource, payment method, credential, or asset has been created or changed.
+
+**Owner decision:** `USAGE-BASED COST MODEL APPROVED; OPERATIONAL SETUP PENDING`
+
+**Approval date:** `2026-11-22`
+
+**Agreed test window:** `NOT SPECIFIED`
+
+**Agreed budget-alert threshold (USD):** `NOT SPECIFIED — informational only, not a cap`
+
+**Acknowledgement reference:** `Direct owner approval in project conversation, 2026-11-22`
+
+## 5. Rights-evidence intake required for one test asset
+
+The proposed asset must be either (a) original content whose complete rights are controlled by NexaFilm/the owner, or (b) content covered by a signed agreement / written grant that explicitly permits the intended technical and distribution uses.
+
+Collect and review these fields outside the public Git repository:
+
+| Required evidence | What the reviewer must confirm | Intake state |
+|---|---|---|
+| Asset identity | Filename, duration, format, file SHA-256; one asset only | **NOT PROVIDED** |
+| Rights holder | Legal name of the owner/licensor and authority to grant rights | **NOT PROVIDED** |
+| Chain of title | Creator/source and authority to license the recording and all incorporated elements | **NOT PROVIDED** |
+| Audio/music rights | Composition, master recording, voice/performance and synchronization rights as applicable | **NOT PROVIDED** |
+| Image/appearance rights | Performer, actor, presenter, artwork, location/property releases where applicable | **NOT PROVIDED** |
+| Permitted technical uses | Upload, storage, copying, transcoding/encoding, packaging, CDN delivery and temporary caching | **NOT PROVIDED** |
+| Permitted distribution | OTT/VOD streaming to intended users; platform and language scope | **NOT PROVIDED** |
+| Territory | Exact ISO 3166-1 alpha-2 country allowlist; do not infer global rights | **NOT PROVIDED** |
+| Term | Effective date, expiry date, and any renewal/termination conditions | **NOT PROVIDED** |
+| Download rights | Explicitly confirm download permission; default remains disabled | **NOT PROVIDED** |
+| Restrictions | Exclusivity, attribution, edits, age rating, sublicensing, promo/trailer restrictions, takedown conditions | **NOT PROVIDED** |
+| Signed evidence | Signed agreement or written rights statement stored in an access-controlled system | **NOT PROVIDED** |
+| Reviewer record | Responsible reviewer, review timestamp, and internal reference to the controlled evidence | **NOT PROVIDED** |
+
+A short synthetic clip created entirely for this POC may be a suitable alternative only when its authorship and rights over visuals, audio, voice, music, and any third-party components are controlled and documented. Do not use copyrighted films, trailers, music, stock footage, or third-party video unless the written licence explicitly permits these uses.
+
+**Confidentiality:** Do not commit the agreement, identity documents, private rights-holder contact details, or credentials to GitHub. Store the actual evidence in an access-controlled legal/compliance location. Only a non-secret evidence reference and SHA-256 may be recorded in the application/audit trail when appropriate.
+
+## 6. Existing NexaFilm licence workflow
+
+The current Admin Licence API creates/updates a record as `PENDING` and unpublishes a previously published movie. Approval requires an explicit administrator confirmation and a signed-agreement reference; it records an audit event, copies the rights owner/dates/territories into the Movie record, and keeps downloads disabled.
+
+The API stores the reference in `License.notes`; the schema has no contract attachment or agreement-hash field, and the API does not inspect the underlying document. Consequently, the responsible reviewer must inspect the real agreement out-of-band before approving. A free-text reference alone is not proof of rights.
+
+The isolated Preview/E2E database currently has no Movie or License records. Do not seed or mark a licence ACTIVE as part of this intake.
+
+## 7. Hard technical gates after owner/rights approval
+
+Only after owner approval and actual rights evidence are accepted:
+1. Confirm the Cloudflare account and Pay-as-you-go / billing status with the owner.
+2. If supported, configure account-level budget alerts, and record the limitation that alerts are not a cap.
+3. Create the narrowest possible Stream API credential only after explicit approval; never expose it in GitHub or chat logs.
+4. Upload exactly one rights-cleared asset to the non-production account.
+5. Verify `requireSignedURLs=true`, `readyToStream=true`, downloads disabled, and bind the Stream UID only to the matching approved test record.
+6. Run private-ID denial, signed HLS manifest/segment, expiry, territory and download-denial tests.
+7. Manually disable the POC when complete. Do not change Production flags or accounts.
+
+## 8. Current decision
+
+**Phase 5.29 update (2026-11-22): owner approval of the usage-based storage/delivery cost model and acknowledgement of the no-hard-cap limitation are RECORDED. Operational account/resource/payment-method setup and the test window/alert threshold remain pending; rights evidence and a test asset are NOT PROVIDED.** No account, subscription, payment method, API token, signing key, media asset, database record, or environment variable was created or changed. No Production resource was accessed or modified.
+
+The next gate is a single rights-cleared non-production asset with the underlying agreement or written rights grant inspected by the responsible reviewer. Keep provider flags off and playback fail-closed until that independent gate and the remaining operational approvals are satisfied.
+
+
+## Phase 5.38 addendum — replacement procedural test asset and operational plan (2026-11-23)
+
+- A new procedural NexaFilm test asset is now available: `nexafilm-original-test.mp4`, 10 seconds, H.264, 1280×720, video-only; SHA-256 `f28ec6979199bed58194759b5664f4ec13285980e456b910b82e545fda3f7c13`.
+- Its generator uses in-house Python/NumPy/Pillow procedural frame drawing and FFmpeg encoding, with no vidIQ/MiniMax generation, third-party stock footage, existing movie/trailer footage, music, logos, brands, people or character references. See `docs/media/nexafilm-original-test-asset-provenance.md`.
+- The owner explicitly approved this asset for restricted, non-public, non-commercial technical testing in isolated Preview only on 2026-11-23. This is an internal test-scope approval, not a legal opinion, public/commercial distribution grant, or permission to upload it to a provider.
+- The operational plan has been prepared at `docs/media/cloudflare-stream-nonproduction-poc-operational-plan.md`. It proposes one asset, one owner-operated test session, a 60-minute window, a maximum of 10 successful playback attempts, a $5 early-warning and $10 escalation account-wide alert proposal, private/signed playback, a single Preview origin, and manual deletion after the test.
+- Current Cloudflare docs state storage capacity is prepaid in $5/month increments per 1,000 minutes, delivery is $1 per 1,000 minutes delivered, segment preloading/buffering is billable, and budget alerts are informational, account-wide, and not a usage cap. No hard spend ceiling is represented.
+- Cloudflare's Direct Upload API requires any `scheduledDeletion` timestamp to be at least 30 days after upload; therefore, the plan requires immediate manual deletion after the short POC, with scheduled deletion used only as a safety net.
+- The prior owner approval of the usage-based cost model and acknowledgement of the no-hard-cap limitation (2026-11-22) remains recorded.
+- **Still not authorised:** Cloudflare account/Stream resource setup, payment-method creation/change, API token/signing-key creation, Preview environment secret changes, upload, database row changes, playback activation, or Production operations. Test window start, alert thresholds/recipients, account confirmation, payment/setup and credential approvals remain pending.
+
+
+## Phase 5.38 owner parameter approval update — 2026-11-23
+
+The project owner explicitly approved the following proposed operational parameters in chat:
+
+- **Test-window duration:** 60 consecutive minutes. The actual start date/time is still to be agreed.
+- **Account-wide budget alert threshold values:** US$5 early warning and US$10 escalation. These values are approved for configuration, but no alert rule has yet been created or saved.
+- The owner has previously acknowledged that Cloudflare Budget Alerts are informational only and do not stop, pause, or cap Stream usage.
+
+Still pending and not authorized by this parameter approval:
+- Confirmation of the exact existing Cloudflare account and its Pay-as-you-go/billing state.
+- Creation/use of a Stream resource.
+- Payment-method setup or change, if the account requires it.
+- Selection of alert recipients in the Cloudflare Dashboard.
+- Confirmation of the exact test start date/time.
+- Creation and storage of a narrowly scoped API credential.
+- Asset upload or playback activation.
+
+**Recorded decision:** `60-MINUTE DURATION APPROVED; US$5/US$10 ALERT VALUES APPROVED; CONFIGURATION AND EXECUTION PENDING`.
+
+No Cloudflare account, resource, alert, payment method, API credential, signing key, upload URL, media upload, database row, environment variable or playback flag was created or changed. Production remains untouched.
+
+
+## Cloudflare account status update — owner report (2026-11-23)
+
+The project owner reports that a Cloudflare account already exists, but no bill has been issued/paid so far. This is recorded as a user-reported fact only; the project team has not independently inspected the account or its billing page.
+
+| Item | State |
+|---|---|
+| Cloudflare account exists | **YES — USER-REPORTED** |
+| Pay-as-you-go billing status | **UNVERIFIED** |
+| Billing profile completion | **UNVERIFIED** |
+| Payment method on file | **UNVERIFIED** |
+| Active subscriptions / Stream storage capacity | **UNVERIFIED** |
+| Current billable usage / invoices | **UNVERIFIED** |
+| Stream resource exists | **NOT VERIFIED — DO NOT ASSUME** |
+
+No bill to date does not establish that Pay-as-you-go billing is active or inactive. Before any Stream resource or payment-method action, the owner must inspect the selected Cloudflare account under **Manage Account → Billing → Subscriptions / Payment methods**, and if available **Billing → Billable Usage**. The review must be read-only. Do not select Add Payment Method, purchase capacity, create a Stream resource, or save any billing change during this verification step.
+
+No account change, payment operation, resource creation, alert configuration, credential creation, media upload, database mutation, environment change, or Production operation was performed.
+
+
+## Cloudflare Billable Usage screenshot observation — 2026-11-24
+
+The owner supplied a screenshot of the Cloudflare Dashboard. The **Billable usage** tab is selected with period **Current Month**, and the panel displays **“No data.”** The same screen states:
+- Data is refreshed daily and is for estimation purposes only.
+- Monthly calendar views may not align with the account billing period.
+- The view includes only product activity that would be reflected on the bill.
+
+This establishes only that the selected dashboard view displayed no data at the screenshot time (approximately 21:17 IST on 2026-11-24). It does **not** independently establish that Pay-as-you-go billing is active, that the billing profile is complete, that a payment method is already attached, or that the account has had no chargeable activity in every billing view. The page does not show the Payment methods or Subscriptions details.
+
+| Verification item | Current evidence |
+|---|---|
+| Cloudflare account exists | **YES — USER-REPORTED** |
+| Current Month Billable Usage panel | **“No data” displayed in screenshot — 2026-11-24** |
+| Subscribed products shown | **Workers Free — Active (Compute); no Stream item visible in supplied screenshot** |
+| Payment method on file | **NO — screenshot explicitly states “No payment method on file”** |
+| Pay-as-you-go subscription / Stream billing eligibility | **UNVERIFIED** |
+| Billing profile completion | **UNVERIFIED** |
+| Stream storage capacity / resource | **NOT VERIFIED — DO NOT ASSUME** |
+| Billable usage freshness / period | Dashboard says daily refresh and estimation-only; calendar month may not align with billing period | **OBSERVED — LIMITED TO SCREENSHOT** |
+
+Next verification remains read-only: inspect **Subscriptions** and **Payment methods** in the same account. Do not select Add Payment Method, change billing, purchase capacity, create a Stream resource or configure alerts during that check.
+
+
+## Cloudflare Subscriptions screenshot observation — 2026-11-24
+
+The owner supplied a second Cloudflare Dashboard screenshot of the **Subscriptions** page. In the **Subscribed** tab it shows one product under the **Compute** category: **Workers Free — Active**. The **Payment method** panel explicitly states **“No payment method on file.”** No Cloudflare Stream subscription is visible in the supplied screen.
+
+This establishes only what is visible on that Subscriptions page at the screenshot time (approximately 21:22 IST on 2026-11-24). It does not establish the account's full domain plan, confirm Pay-as-you-go status, or prove whether Cloudflare Stream might appear in another account/product page. The earlier Current Month Billable Usage screenshot shows “No data,” with a dashboard note that the data refreshes daily and is estimation-only.
+
+Cloudflare's official billing documentation states that a primary payment method is required to purchase Cloudflare products and services: https://developers.cloudflare.com/billing/get-started/create-billing-profile/ (reviewed 2026-11-24). Therefore, paid Stream provisioning cannot proceed on the evidence shown until the owner independently completes the billing-profile/payment-method step. Adding a payment method has not been approved or performed in this checkpoint.
+
+| Item | Verified state |
+|---|---|
+| Workers subscription shown | **Workers Free — Active** |
+| Payment method on file | **NO — screenshot says none on file** |
+| Stream subscription visible | **NO Stream item visible in supplied screenshot** |
+| Pay-as-you-go / Stream billing eligibility | **UNVERIFIED** |
+| Payment-method addition | **NOT APPROVED / NOT PERFORMED** |
+| Cloudflare Stream resource and media upload | **NOT CREATED / NOT PERFORMED** |
+
+
+## Owner approval — add primary payment method personally (2026-11-24)
+
+After reviewing the supplied Subscriptions screenshot (which shows **Workers Free — Active** and **No payment method on file**), the project owner explicitly approved adding a primary payment method personally through the Cloudflare Dashboard.
+
+**Scope of approval:** owner-initiated addition of a primary payment method and completion of the associated billing profile only. The approval does not mean the payment method has been entered, saved, validated, or charged. The owner must review Cloudflare's checkout/payment confirmation directly.
+
+**Not authorised by this approval:** the assistant entering or changing payment details; purchasing a Workers or other paid plan; provisioning a Cloudflare Stream resource or storage capacity; creating budget-alert rules; creating API tokens/signing keys; uploading media; enabling playback; or making Production changes.
+
+Cloudflare's current billing instructions are:
+1. In the Cloudflare Dashboard, open **Billing → Subscriptions**.
+2. Open the **Payment methods** panel and select **Add Payment Method**.
+3. Choose a supported payment method, enter the details directly in Cloudflare, complete any issuer authentication such as 3D Secure, review billing/contact information and select **Confirm**.
+4. Verify the newly added method appears in the Payment methods panel.
+
+Official source: https://developers.cloudflare.com/billing/get-started/create-billing-profile/ (last updated 2026-05-29; accessed 2026-11-24).
+
+Cloudflare's billing policy also states it may preauthorise a payment method for usage-based services; this can be a temporary hold to verify that the method can cover accrued usage. The project owner must review the live confirmation and their issuer's notifications. Official source: https://developers.cloudflare.com/billing/understand/billing-policy/.
+
+**Current status:** owner approval **APPROVED**; payment method addition **PENDING OWNER ACTION**; Stream resource and upload **NOT AUTHORIZED / NOT PERFORMED**. Do not share card numbers, CVV, bank credentials or OTPs in chat or screenshots.
+
+
+## Owner deferral — subscription and payment setup postponed until final activation (2026-11-24)
+
+The owner subsequently clarified: **do not subscribe or add a payment method now; complete the NexaFilm build first and handle subscription/billing at the final stage.**
+
+This later instruction supersedes the earlier same-day approval to add a primary payment method personally. The earlier approval remains historical only and must not be treated as current authorization.
+
+| Item | Current decision |
+|---|---|
+| Add primary payment method now | **DEFERRED — DO NOT DO NOW** |
+| Purchase/subscribe to Cloudflare Stream now | **DEFERRED — DO NOT DO NOW** |
+| Create paid Stream resource / buy storage capacity now | **DEFERRED — DO NOT DO NOW** |
+| Complete remaining NexaFilm implementation and Preview validation | **CONTINUE** |
+| Revisit billing at final activation | **PENDING — require fresh explicit owner confirmation at that stage** |
+
+The approved usage-based cost model, no-hard-cap acknowledgement, 60-minute proposed test-window duration, US$5/US$10 alert threshold values, and restricted internal test-asset purpose remain recorded. These parameter approvals do not authorize spending or provider-side setup now.
+
+During the build phase, continue only provider-independent implementation, documentation, mocked provider tests, and fail-closed Preview validation. Keep Cloudflare payment setup, Stream resources, alert configuration, credentials, upload, and playback activation off until the final activation decision.
+
+No payment method, subscription, Stream resource, alert rule, API credential, upload URL, asset upload, database row, environment change, playback flag or Production resource was created or changed as part of this deferral.

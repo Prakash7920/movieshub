@@ -4,6 +4,9 @@ import { getVercelViewerCountry } from "@/lib/licensing/territory";
 
 export const runtime = "nodejs";
 
+const SUPPORTED_LANGUAGE_CODES = new Set(["all", "ta", "en", "te", "ml", "kn", "hi", "bn", "mr"]);
+const INVALID_FILTER_HEADERS = { "Cache-Control": "private, no-store" };
+
 export async function GET(request: Request) {
   const country = getVercelViewerCountry(request.headers);
   if (!country) {
@@ -16,8 +19,25 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const search = (searchParams.get("search") ?? "").trim().slice(0, 100);
-    const language = searchParams.get("language") ?? "all";
-    const genre = searchParams.get("genre") ?? "all";
+    const language = (searchParams.get("language") ?? "all").trim().toLowerCase();
+    const genre = (searchParams.get("genre") ?? "all").trim().toLowerCase();
+
+    if (!SUPPORTED_LANGUAGE_CODES.has(language)) {
+      return NextResponse.json(
+        { error: "Unsupported language filter." },
+        { status: 400, headers: INVALID_FILTER_HEADERS },
+      );
+    }
+    if (
+      genre !== "all" &&
+      (genre.length > 80 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(genre))
+    ) {
+      return NextResponse.json(
+        { error: "Invalid genre filter." },
+        { status: 400, headers: INVALID_FILTER_HEADERS },
+      );
+    }
+
     const now = new Date();
 
     const currentlyLicensed = {
@@ -42,6 +62,7 @@ export async function GET(request: Request) {
             { titleEn: { contains: search, mode: "insensitive" } },
             { titleTa: { contains: search, mode: "insensitive" } },
             { descriptionEn: { contains: search, mode: "insensitive" } },
+            { descriptionTa: { contains: search, mode: "insensitive" } },
           ],
         } : {}),
         ...(genre !== "all" ? { genres: { some: { genre: { slug: genre } } } } : {}),
@@ -61,18 +82,7 @@ export async function GET(request: Request) {
       where: {
         movies: {
           some: {
-            movie: {
-              isPublished: true,
-              contentStatus: "PUBLISHED",
-              license: {
-                is: {
-                  status: "ACTIVE",
-                  startDate: { lte: now },
-                  expiryDate: { gt: now },
-                  allowedCountries: { has: country },
-                },
-              },
-            },
+            movie: currentlyLicensed,
           },
         },
       },

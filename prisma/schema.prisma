@@ -62,6 +62,73 @@ enum LicenseStatus {
   REJECTED
 }
 
+enum CreatorProfileStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+  CLOSED
+}
+
+enum CreatorSubmissionStatus {
+  DRAFT
+  SUBMITTED
+  NEEDS_CHANGES
+  REJECTED
+  APPROVED_FOR_CATALOGUE
+}
+
+enum CreatorContentType {
+  SHORT_FILM
+  EPISODE
+}
+
+enum CreatorSubmissionRevisionStatus {
+  DRAFT
+  SUBMITTED
+  NEEDS_CHANGES
+  REJECTED
+  APPROVED_FOR_CATALOGUE
+  SUPERSEDED
+  WITHDRAWN
+}
+
+enum CreatorRightsReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CreatorMediaRole {
+  PRIMARY_VIDEO
+  TRAILER
+  POSTER
+  BACKDROP
+  CAPTION
+  SUBTITLE
+}
+
+enum UploadIntentStatus {
+  PENDING
+  AUTHORIZED
+  COMPLETED
+  CONSUMED
+  EXPIRED
+  CANCELLED
+  FAILED
+}
+
+enum MediaAssetVersionStatus {
+  QUARANTINED
+  PROCESSING
+  TECHNICAL_REVIEW
+  READY_FOR_REVIEW
+  REJECTED
+  TAKEDOWN_PENDING
+  REMOVED
+  FAILED
+}
+
 model User {
   id               String          @id @default(cuid())
   email            String          @unique
@@ -87,6 +154,15 @@ model User {
   recommendations Recommendation[]
   adminUser        AdminUser?
   passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  revokedSessionTokens RevokedSessionToken[]
+  reviewedLicenses      License[] @relation("LicenseReviewedBy")
+  creatorProfile        CreatorProfile?
+  reviewedCreatorProfiles CreatorProfile[] @relation("CreatorProfileReviewer")
+  reviewedCreatorSubmissions CreatorSubmission[] @relation("CreatorSubmissionReviewer")
+  reviewedCreatorSubmissionRevisions CreatorSubmissionRevision[] @relation("CreatorSubmissionRevisionReviewer")
+  submittedCreatorRightsReviews CreatorRightsReview[] @relation("CreatorRightsReviewSubmittedBy")
+  reviewedCreatorRightsReviews CreatorRightsReview[] @relation("CreatorRightsReviewReviewedBy")
 
   @@index([email])
   @@index([role])
@@ -103,6 +179,39 @@ model PasswordResetToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+model RateLimitBucket {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  count     Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([expiresAt])
+}
+
+model RevokedSessionToken {
+  id        String   @id @default(cuid())
+  tokenId   String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
   @@index([expiresAt])
 }
 
@@ -152,6 +261,7 @@ model Movie {
   backdropUrl String
   trailerUrl String?
   videoUrl String?
+  cloudflareStreamUid String? @unique
   language String @default("ta")
   audioLanguages String[]
   subtitleLanguages String[]
@@ -260,6 +370,10 @@ model Payment {
   status PaymentStatus @default(PENDING)
   paymentMethod String?
   transactionId String?
+  requestKey String? @unique
+  razorpayOrderId String? @unique
+  plan PlanType @default(FREE)
+  billingCycle BillingCycle @default(MONTHLY)
   metadata Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -288,18 +402,205 @@ model License {
   id String @id @default(cuid())
   movieId String @unique
   owner String
-  status LicenseStatus @default(ACTIVE)
+  status LicenseStatus @default(PENDING)
   startDate DateTime
   expiryDate DateTime
   allowedCountries String[]
   downloadAllowed Boolean @default(false)
   notes String?
+  evidenceReference String? @db.VarChar(300)
+  evidenceSha256 String? @db.Char(64)
+  rightsScopeConfirmed Boolean @default(false)
+  reviewedAt DateTime?
+  reviewedByUserId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  reviewedByUser User? @relation("LicenseReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
   @@index([status])
   @@index([expiryDate])
+  @@index([reviewedByUserId])
 }
+model CreatorProfile {
+  id                String               @id @default(cuid())
+  userId            String               @unique
+  publicName        String               @db.VarChar(80)
+  bio               String?              @db.VarChar(500)
+  adultEligibilityConfirmed Boolean       @default(false)
+  status            CreatorProfileStatus @default(PENDING)
+  appliedAt         DateTime             @default(now())
+  reviewedAt        DateTime?
+  reviewedByUserId  String?
+  reviewNotes       String?              @db.VarChar(1000)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedByUser    User?                @relation("CreatorProfileReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
+  submissions       CreatorSubmission[]
+
+  @@index([status, appliedAt])
+  @@index([reviewedByUserId])
+}
+
+model CreatorSubmission {
+  id                String                  @id @default(cuid())
+  creatorProfileId  String
+  title             String                  @db.VarChar(160)
+  synopsis          String                  @db.VarChar(3000)
+  originalLanguage  String                  @db.VarChar(3)
+  runtimeMinutes    Int
+  releaseYear       Int
+  contentType       CreatorContentType
+  status            CreatorSubmissionStatus @default(DRAFT)
+  submittedAt       DateTime?
+  reviewedAt        DateTime?
+  reviewedByUserId  String?
+  reviewNotes       String?                 @db.VarChar(1000)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  creatorProfile    CreatorProfile          @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  reviewedByUser    User?                   @relation("CreatorSubmissionReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
+  revisions         CreatorSubmissionRevision[]
+
+  @@index([creatorProfileId, status, updatedAt])
+  @@index([status, submittedAt])
+  @@index([reviewedByUserId])
+}
+
+
+/// Immutable metadata snapshot for one identifiable creator submission revision.
+/// Only review state and reviewer fields may change after creation.
+model CreatorSubmissionRevision {
+  id                  String                           @id @default(cuid())
+  creatorSubmissionId String
+  revisionNumber      Int
+  title               String                           @db.VarChar(160)
+  synopsis            String                           @db.VarChar(3000)
+  originalLanguage    String                           @db.VarChar(3)
+  runtimeMinutes      Int
+  releaseYear         Int
+  contentType         CreatorContentType
+  status              CreatorSubmissionRevisionStatus @default(DRAFT)
+  submittedAt         DateTime?
+  reviewedAt          DateTime?
+  reviewedByUserId    String?
+  reviewNotes         String?                          @db.VarChar(1000)
+  createdAt           DateTime                         @default(now())
+  updatedAt           DateTime                         @updatedAt
+
+  creatorSubmission   CreatorSubmission               @relation(fields: [creatorSubmissionId], references: [id], onDelete: Cascade)
+  reviewedByUser      User?                            @relation("CreatorSubmissionRevisionReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
+  uploadIntents       UploadIntent[]
+  mediaAssetVersions  MediaAssetVersion[]
+  rightsReviews       CreatorRightsReview[]
+
+  @@unique([creatorSubmissionId, revisionNumber])
+  @@index([status, submittedAt])
+  @@index([reviewedByUserId])
+}
+
+/// An immutable human-reviewed rights decision for one exact creator work revision.
+model CreatorRightsReview {
+  id                       String                    @id @default(cuid())
+  submissionRevisionId     String
+  sequence                 Int
+  status                   CreatorRightsReviewStatus @default(PENDING)
+  rightsHolder             String                    @db.VarChar(200)
+  evidenceReference        String                    @db.VarChar(300)
+  evidenceSha256           String                    @db.Char(64)
+  ownerApprovalReference   String                    @db.VarChar(300)
+  legalApprovalReference   String                    @db.VarChar(300)
+  allowedTerritories       String[]
+  allowedLanguages         String[]
+  permittedMediaRoles      CreatorMediaRole[]
+  startDate                DateTime
+  expiryDate               DateTime
+  uploadAllowed            Boolean                   @default(false)
+  hostingAllowed           Boolean                   @default(false)
+  processingAllowed        Boolean                   @default(false)
+  ottVodStreamingAllowed   Boolean                   @default(false)
+  downloadsAllowed         Boolean                   @default(false)
+  evidenceInspected        Boolean                   @default(false)
+  rightsScopeConfirmed     Boolean                   @default(false)
+  ownerApprovalConfirmed   Boolean                   @default(false)
+  legalApprovalConfirmed   Boolean                   @default(false)
+  submittedByUserId        String
+  reviewedAt               DateTime?
+  reviewedByUserId         String?
+  reviewNotes              String?                   @db.VarChar(1000)
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+
+  submissionRevision CreatorSubmissionRevision @relation(fields: [submissionRevisionId], references: [id], onDelete: Cascade)
+  submittedBy        User                      @relation("CreatorRightsReviewSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: Restrict)
+  reviewedBy         User?                     @relation("CreatorRightsReviewReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([submissionRevisionId, sequence])
+  @@index([submissionRevisionId, status, sequence])
+  @@index([status, expiryDate])
+  @@index([reviewedByUserId])
+  @@index([submittedByUserId])
+}
+
+/// Provider-neutral, single-use authorization intent metadata.
+/// Never store upload URLs, signed capabilities, API tokens, or credentials here.
+model UploadIntent {
+  id                   String             @id @default(cuid())
+  submissionRevisionId String
+  mediaRole            CreatorMediaRole
+  territoryCode        String?            @db.VarChar(2)
+  status               UploadIntentStatus @default(PENDING)
+  idempotencyKey       String             @db.VarChar(128)
+  maxFileSizeBytes     BigInt
+  allowedMimeTypes     String[]
+  maxDurationSeconds   Int?
+  expiresAt            DateTime
+  authorizedAt         DateTime?
+  completedAt          DateTime?
+  consumedAt           DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  submissionRevision   CreatorSubmissionRevision @relation(fields: [submissionRevisionId], references: [id], onDelete: Cascade)
+  assetVersion         MediaAssetVersion?
+
+  @@unique([submissionRevisionId, idempotencyKey])
+  @@unique([id, submissionRevisionId])
+  @@index([submissionRevisionId, status, expiresAt])
+  @@index([status, expiresAt])
+}
+
+/// Immutable, quarantined source-file facts and opaque private storage reference.
+/// This model intentionally contains no public URL or playback manifest.
+model MediaAssetVersion {
+  id                   String                  @id @default(cuid())
+  submissionRevisionId String
+  uploadIntentId       String                  @unique
+  versionNumber        Int
+  status               MediaAssetVersionStatus @default(QUARANTINED)
+  sourceSha256         String                  @db.Char(64)
+  fileSizeBytes        BigInt
+  detectedMimeType     String                  @db.VarChar(127)
+  durationSeconds      Int?
+  widthPixels          Int?
+  heightPixels         Int?
+  storageProvider      String?                 @db.VarChar(64)
+  storageAssetRef      String?                 @db.VarChar(512)
+  quarantinedAt        DateTime                @default(now())
+  validatedAt          DateTime?
+  removedAt            DateTime?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  submissionRevision   CreatorSubmissionRevision @relation(fields: [submissionRevisionId], references: [id], onDelete: Cascade)
+  uploadIntent         UploadIntent              @relation(fields: [uploadIntentId, submissionRevisionId], references: [id, submissionRevisionId], onDelete: Cascade)
+
+  @@unique([submissionRevisionId, versionNumber])
+  @@unique([uploadIntentId, submissionRevisionId])
+  @@index([submissionRevisionId, status, createdAt])
+  @@index([status, createdAt])
+}
+
 model Review {
   id String @id @default(cuid())
   userId String
@@ -355,4 +656,33 @@ model Session {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([sessionToken])
+}
+
+model AdminAuditLog {
+  id           String   @id @default(cuid())
+  actorUserId  String?
+  actorEmail   String
+  action       String
+  resourceType String   @map("targetType")
+  resourceId   String?  @map("targetId")
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([actorUserId, createdAt])
+  @@index([resourceType, resourceId, createdAt], map: "AdminAuditLog_targetType_targetId_createdAt_idx")
+  @@index([action, createdAt])
+}
+
+
+model PaymentWebhookEvent {
+  id String @id @default(cuid())
+  eventId String @unique
+  event String
+  razorpayOrderId String?
+  gatewayPaymentId String?
+  processingStatus String @default("RECEIVED")
+  receivedAt DateTime @default(now())
+  processedAt DateTime?
+  @@index([razorpayOrderId, receivedAt])
+  @@index([processingStatus, receivedAt])
 }

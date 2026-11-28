@@ -1,0 +1,110 @@
+name: P3009 Isolated Prisma Recovery Preflight
+
+on:
+  push:
+    branches:
+      - phase-5/consolidated-security-ops
+    paths:
+      - '.github/workflows/p3009-isolated-prisma-preflight.yml'
+      - 'prisma/**'
+      - 'package.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-isolated-test-branch:
+    if: github.ref == 'refs/heads/phase-5/consolidated-security-ops'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.NEON_P3009_TEST_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.NEON_P3009_TEST_DIRECT_URL }}
+    steps:
+      - name: Checkout recovery branch
+        uses: actions/checkout@v4
+        with:
+          ref: phase-5/consolidated-security-ops
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies without generating a lockfile
+        run: npm install --no-package-lock
+
+      - name: Validate isolated database secrets exist
+        shell: bash
+        run: |
+          if [ -z "${DATABASE_URL}" ] || [ -z "${DIRECT_URL}" ]; then
+            echo "::error::One or more isolated Neon secrets are missing."
+            exit 1
+          fi
+          echo "Both isolated database secrets are present; values will not be printed."
+
+      - name: Verify historical migration SQL checksums against Neon records
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin integration/nexafilm-security
+          git fetch --no-tags origin integration/nexafilm-security-brand
+          declare -A expected=(
+            [20261103200000_security_foundation]=f02627ddfbfba41c88c4b57271933dc097fdc88c8dde6ecb8072160f21ed178d
+            [20261103210000_session_revocation]=aa422cbdc42f8e2a2e9e20bfbefc10db96aeaf8357b1e666b27dc2499715d164
+            [20261104120000_enforce_required_array_columns]=0b9ca2e12abe565015296a914410c24e9977ed8d21bf73fac549657961eedd24
+            [20261108020000_auth_rate_limit]=788ea25c07506ba6c9f5fecfa2ec72ada9e13b42ebfbda101c977079614bdee9
+            [20261108040000_admin_audit_log]=93a3c45197711956b20bc826c7251f6c2b48567203ba0812e331c411aa7c43f8
+            [20261109010000_admin_audit_log_append_only]=3da7bfc427b2d488f56a8d76543d3651b1bdfb70e5fc664ae18a971e65aad12a
+          )
+          for migration in "${!expected[@]}"; do
+            path="prisma/migrations/$migration/migration.sql"
+            if [ "$migration" = "20261109010000_admin_audit_log_append_only" ]; then
+              actual="$(git show "origin/integration/nexafilm-security-brand:$path" | sha256sum | awk '{print $1}')"
+              source="integration/nexafilm-security-brand"
+            else
+              actual="$(git show "origin/integration/nexafilm-security:$path" | sha256sum | awk '{print $1}')"
+              source="integration/nexafilm-security"
+            fi
+            if [ "$actual" != "${expected[$migration]}" ]; then
+              echo "::error::Checksum mismatch for $migration from $source"
+              echo "Expected: ${expected[$migration]}"
+              echo "Actual:   $actual"
+              exit 1
+            fi
+            echo "SOURCE CHECKSUM PASS: $migration ($source)"
+          done
+          echo "All six historical source SQL files match the stored Neon checksums."
+
+      - name: Verify restored local migration SQL checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          declare -A expected=(
+            [20261103200000_security_foundation]=f02627ddfbfba41c88c4b57271933dc097fdc88c8dde6ecb8072160f21ed178d
+            [20261103210000_session_revocation]=aa422cbdc42f8e2a2e9e20bfbefc10db96aeaf8357b1e666b27dc2499715d164
+            [20261104120000_enforce_required_array_columns]=0b9ca2e12abe565015296a914410c24e9977ed8d21bf73fac549657961eedd24
+            [20261108020000_auth_rate_limit]=788ea25c07506ba6c9f5fecfa2ec72ada9e13b42ebfbda101c977079614bdee9
+            [20261108040000_admin_audit_log]=93a3c45197711956b20bc826c7251f6c2b48567203ba0812e331c411aa7c43f8
+            [20261109010000_admin_audit_log_append_only]=3da7bfc427b2d488f56a8d76543d3651b1bdfb70e5fc664ae18a971e65aad12a
+          )
+          for migration in "${!expected[@]}"; do
+            path="prisma/migrations/$migration/migration.sql"
+            if [ ! -f "$path" ]; then
+              echo "::error::Restored migration file is missing: $path"
+              exit 1
+            fi
+            actual="$(sha256sum "$path" | awk '{print $1}')"
+            if [ "$actual" != "${expected[$migration]}" ]; then
+              echo "::error::Restored local checksum mismatch for $migration"
+              echo "Expected: ${expected[$migration]}"
+              echo "Actual:   $actual"
+              exit 1
+            fi
+            echo "LOCAL CHECKSUM PASS: $migration"
+          done
+          echo "All six restored local migration SQL files match the stored Neon checksums."
+
+      - name: Inspect Prisma migration status (read-only)
+        run: npx prisma migrate status

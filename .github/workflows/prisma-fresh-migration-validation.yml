@@ -1,0 +1,136 @@
+name: Fresh Prisma Migration Validation
+
+on:
+  push:
+    branches:
+      - phase-5/consolidated-security-ops
+    paths:
+      - '.github/workflows/prisma-fresh-migration-validation.yml'
+      - 'prisma/migrations/**'
+      - 'prisma/schema.prisma'
+      - 'tests/media-control-plane.test.ts'
+      - 'tests/creator-rights-review.integration.test.ts'
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/prisma-fresh-migration-validation.yml'
+      - 'prisma/migrations/**'
+      - 'prisma/schema.prisma'
+      - 'tests/media-control-plane.test.ts'
+      - 'tests/creator-rights-review.integration.test.ts'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prisma-fresh-migration-validation
+  cancel-in-progress: false
+
+jobs:
+  migrate-empty-postgres:
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/phase-5/consolidated-security-ops') ||
+      (github.event_name == 'pull_request' && github.head_ref == 'phase-5/consolidated-security-ops')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: nexafilm_migration_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: nexafilm-ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d nexafilm_migration_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:nexafilm-ci-only-password@localhost:5432/nexafilm_migration_test?schema=public
+      DIRECT_URL: postgresql://postgres:nexafilm-ci-only-password@localhost:5432/nexafilm_migration_test?schema=public
+      PGPASSWORD: nexafilm-ci-only-password
+    steps:
+      - name: Check out current PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: phase-5/consolidated-security-ops
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install --no-package-lock
+
+      - name: Assert the per-run PostgreSQL database is empty
+        shell: bash
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          if [ -z "${POSTGRES_CONTAINER}" ]; then
+            echo "::error::GitHub Actions did not expose the PostgreSQL service container ID."
+            exit 1
+          fi
+          migration_table="$(docker exec "${POSTGRES_CONTAINER}" psql -U postgres -d nexafilm_migration_test -Atqc "SELECT COALESCE(to_regclass('public._prisma_migrations')::text, '')")"
+          if [ -n "${migration_table}" ]; then
+            echo "::error::Expected a fresh database, but public._prisma_migrations already exists."
+            exit 1
+          fi
+          user_table_count="$(docker exec "${POSTGRES_CONTAINER}" psql -U postgres -d nexafilm_migration_test -Atqc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'")"
+          if [ "${user_table_count}" != "0" ]; then
+            echo "::error::Expected an empty public schema, found ${user_table_count} tables."
+            exit 1
+          fi
+          echo "FRESH DATABASE PASS: new PostgreSQL service has zero public tables and no Prisma migration ledger."
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Apply every migration to the fresh database
+        run: npx prisma migrate deploy
+
+      - name: Exercise media control-plane migration invariants
+        env:
+          MOVIESHUB_E2E: "true"
+          MEDIA_CONTROL_PLANE_MIGRATION_TEST: "true"
+          RATE_LIMIT_SECRET: ci-only-rate-limit-secret-value-with-more-than-32-characters
+        run: npx tsx --test tests/media-control-plane.test.ts
+
+      - name: Exercise creator work/version rights-review workflow
+        env:
+          MOVIESHUB_E2E: "true"
+          CREATOR_RIGHTS_REVIEW_MIGRATION_TEST: "true"
+          RATE_LIMIT_SECRET: ci-only-rate-limit-secret-value-with-more-than-32-characters
+        run: npx tsx --test tests/creator-rights-review.integration.test.ts
+
+      - name: Verify migration ledger exactly matches repository migrations
+        shell: bash
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          expected_count="$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+          ledger_summary="$(docker exec "${POSTGRES_CONTAINER}" psql -U postgres -d nexafilm_migration_test -Atqc "SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) || ':' || count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) FROM public._prisma_migrations")"
+          applied_count="${ledger_summary%%:*}"
+          unresolved_count="${ledger_summary##*:}"
+          echo "Repository migration directories: ${expected_count}"
+          echo "Successfully applied migrations: ${applied_count}"
+          echo "Unresolved migration rows: ${unresolved_count}"
+          if [ "${applied_count}" -ne "${expected_count}" ] || [ "${unresolved_count}" -ne 0 ]; then
+            echo "::error::Fresh migration ledger does not match the repository migration set."
+            exit 1
+          fi
+          echo "FRESH MIGRATION LEDGER PASS: all repository migrations applied exactly once with no unresolved rows."
+
+      - name: Confirm Prisma reports database up to date
+        run: npx prisma migrate status

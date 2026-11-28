@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
 import AdminMovies from "@/components/admin/admin-movies";
 import AdminLicenses from "@/components/admin/admin-licenses";
+import AdminCreators from "@/components/admin/admin-creators";
+import AdminCreatorRightsReviews from "@/components/admin/admin-creator-rights-reviews";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,5 +18,5 @@ export default async function AdminPage() {
   if (!user || user.isBanned || !["ADMIN", "SUPERADMIN"].includes(user.role)) {
     return <main className="page-shell py-20"><h1 className="text-3xl font-bold text-white">Admin access required</h1><p className="mt-3 text-gray-400">Your account does not have an administrator role.</p></main>;
   }
-  return <><AdminMovies /><AdminLicenses /></>;
+  return <><AdminMovies /><AdminLicenses /><AdminCreators /><AdminCreatorRightsReviews /></>;
 }

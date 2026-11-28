@@ -8,12 +8,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { loginSchema } from "@/lib/validations/auth";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/components/providers/language-provider";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refreshLanguagePreference, t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
+  const passwordChanged = searchParams.get("passwordChanged") === "1";
 
   const {
     register,
@@ -35,9 +38,11 @@ export function LoginForm() {
       });
 
       if (!result || result.error) {
-        setServerError("Email or password is incorrect. Please check your details and try again.");
+        setServerError(t.oldPasswordLoginError);
         return;
       }
+
+      await refreshLanguagePreference();
 
       const requestedPath = searchParams.get("callbackUrl");
       const destination =
@@ -48,7 +53,7 @@ export function LoginForm() {
       router.push(destination);
       router.refresh();
     } catch {
-      setServerError("Unable to log in right now. Please try again.");
+      setServerError(t.oldPasswordLoginError);
     } finally {
       setIsSubmitting(false);
     }
@@ -56,8 +61,14 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {passwordChanged ? (
+        <p role="status" aria-live="polite" className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          {t.passwordUpdatedSignIn}
+        </p>
+      ) : null}
+
       <div>
-        <label className="mb-2 block text-sm text-gray-300">Email</label>
+        <label className="mb-2 block text-sm text-gray-300">{t.emailAddress}</label>
         <input
           {...register("email")}
           type="email"
@@ -69,7 +80,7 @@ export function LoginForm() {
       </div>
 
       <div>
-        <label className="mb-2 block text-sm text-gray-300">Password</label>
+        <label className="mb-2 block text-sm text-gray-300">{t.password}</label>
         <input
           type="password"
           {...register("password")}
@@ -86,12 +97,8 @@ export function LoginForm() {
         </p>
       )}
 
-      <Button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full bg-red-600 hover:bg-red-500"
-      >
-        {isSubmitting ? "Logging in..." : "Login"}
+      <Button type="submit" disabled={isSubmitting} className="w-full bg-red-600 hover:bg-red-500">
+        {isSubmitting ? t.loggingIn : t.login}
       </Button>
     </form>
   );
