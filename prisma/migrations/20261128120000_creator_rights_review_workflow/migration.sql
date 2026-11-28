@@ -40,17 +40,20 @@ CREATE TABLE "CreatorRightsReview" (
   CONSTRAINT "CreatorRightsReview_sequence_check" CHECK ("sequence" > 0),
   CONSTRAINT "CreatorRightsReview_rightsHolder_check" CHECK (length(btrim("rightsHolder")) BETWEEN 3 AND 200),
   CONSTRAINT "CreatorRightsReview_evidenceReference_check" CHECK (
-    "evidenceReference" ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{2,299}$'
+    length("evidenceReference") BETWEEN 3 AND 300
+    AND "evidenceReference" ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]+$'
     AND "evidenceReference" NOT LIKE '%..%'
     AND "evidenceReference" NOT LIKE '%://%'
   ),
   CONSTRAINT "CreatorRightsReview_ownerApprovalReference_check" CHECK (
-    "ownerApprovalReference" ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{2,299}$'
+    length("ownerApprovalReference") BETWEEN 3 AND 300
+    AND "ownerApprovalReference" ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]+$'
     AND "ownerApprovalReference" NOT LIKE '%..%'
     AND "ownerApprovalReference" NOT LIKE '%://%'
   ),
   CONSTRAINT "CreatorRightsReview_legalApprovalReference_check" CHECK (
-    "legalApprovalReference" ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{2,299}$'
+    length("legalApprovalReference") BETWEEN 3 AND 300
+    AND "legalApprovalReference" ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]+$'
     AND "legalApprovalReference" NOT LIKE '%..%'
     AND "legalApprovalReference" NOT LIKE '%://%'
   ),
