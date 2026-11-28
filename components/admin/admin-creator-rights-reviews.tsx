@@ -76,7 +76,7 @@ export default function AdminCreatorRightsReviews() {
           allowedLanguages: form.allowedLanguages.split(",").map(x => x.trim()).filter(Boolean),
           permittedMediaRoles: form.permittedMediaRoles,
           startDate: new Date(form.startDate + "T00:00:00.000Z").toISOString(),
-          expiryDate: new Date(form.expiryDate + "T00:00:00.000Z").toISOString(),
+          expiryDate: new Date(form.expiryDate + "T23:59:59.999Z").toISOString(),
           uploadAllowed: form.uploadAllowed, hostingAllowed: form.hostingAllowed,
           processingAllowed: form.processingAllowed, ottVodStreamingAllowed: form.ottVodStreamingAllowed,
         }),
@@ -94,8 +94,9 @@ export default function AdminCreatorRightsReviews() {
   async function decide(review: RightsReview, status: "APPROVED" | "REJECTED") {
     let reviewNotes: string | undefined;
     if (status === "REJECTED") {
-      reviewNotes = window.prompt("Reason for rejection?");
-      if (!reviewNotes || reviewNotes.trim().length < 3) return;
+      const promptedNotes = window.prompt("Reason for rejection?");
+      if (!promptedNotes || promptedNotes.trim().length < 3) return;
+      reviewNotes = promptedNotes.trim();
     } else {
       const confirmed = window.confirm(
         "Confirm: you inspected the actual signed evidence in the restricted legal store; verified this exact work revision, permitted media roles, languages, territories and term; and verified the recorded owner authorization and legal review. SHA-256 identifies the file only; it does not prove rights."
@@ -108,7 +109,7 @@ export default function AdminCreatorRightsReviews() {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: review.id, status,
-          ...(reviewNotes ? { reviewNotes: reviewNotes.trim() } : {}),
+          ...(reviewNotes ? { reviewNotes } : {}),
           ...(status === "APPROVED" ? {
             evidenceInspected: true, rightsScopeConfirmed: true,
             ownerApprovalConfirmed: true, legalApprovalConfirmed: true,
@@ -170,7 +171,7 @@ export default function AdminCreatorRightsReviews() {
           <label className="text-xs text-gray-300">Rights effective from (UTC date)
             <input className={input + " mt-1"} required type="date" value={form.startDate} onChange={event => setField("startDate", event.target.value)} />
           </label>
-          <label className="text-xs text-gray-300">Rights expire on (UTC date)
+          <label className="text-xs text-gray-300">Last valid rights date (UTC; inclusive)
             <input className={input + " mt-1"} required type="date" value={form.expiryDate} onChange={event => setField("expiryDate", event.target.value)} />
           </label>
           <fieldset className="rounded-xl border border-white/10 p-3 sm:col-span-2">
