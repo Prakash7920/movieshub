@@ -93,6 +93,12 @@ enum CreatorSubmissionRevisionStatus {
   WITHDRAWN
 }
 
+enum CreatorRightsReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum CreatorMediaRole {
   PRIMARY_VIDEO
   TRAILER
@@ -155,6 +161,8 @@ model User {
   reviewedCreatorProfiles CreatorProfile[] @relation("CreatorProfileReviewer")
   reviewedCreatorSubmissions CreatorSubmission[] @relation("CreatorSubmissionReviewer")
   reviewedCreatorSubmissionRevisions CreatorSubmissionRevision[] @relation("CreatorSubmissionRevisionReviewer")
+  submittedCreatorRightsReviews CreatorRightsReview[] @relation("CreatorRightsReviewSubmittedBy")
+  reviewedCreatorRightsReviews CreatorRightsReview[] @relation("CreatorRightsReviewReviewedBy")
 
   @@index([email])
   @@index([role])
@@ -484,10 +492,54 @@ model CreatorSubmissionRevision {
   reviewedByUser      User?                            @relation("CreatorSubmissionRevisionReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
   uploadIntents       UploadIntent[]
   mediaAssetVersions  MediaAssetVersion[]
+  rightsReviews       CreatorRightsReview[]
 
   @@unique([creatorSubmissionId, revisionNumber])
   @@index([status, submittedAt])
   @@index([reviewedByUserId])
+}
+
+/// An immutable human-reviewed rights decision for one exact creator work revision.
+model CreatorRightsReview {
+  id                       String                    @id @default(cuid())
+  submissionRevisionId     String
+  sequence                 Int
+  status                   CreatorRightsReviewStatus @default(PENDING)
+  rightsHolder             String                    @db.VarChar(200)
+  evidenceReference        String                    @db.VarChar(300)
+  evidenceSha256           String                    @db.Char(64)
+  ownerApprovalReference   String                    @db.VarChar(300)
+  legalApprovalReference   String                    @db.VarChar(300)
+  allowedTerritories       String[]
+  allowedLanguages         String[]
+  permittedMediaRoles      CreatorMediaRole[]
+  startDate                DateTime
+  expiryDate               DateTime
+  uploadAllowed            Boolean                   @default(false)
+  hostingAllowed           Boolean                   @default(false)
+  processingAllowed        Boolean                   @default(false)
+  ottVodStreamingAllowed   Boolean                   @default(false)
+  downloadsAllowed         Boolean                   @default(false)
+  evidenceInspected        Boolean                   @default(false)
+  rightsScopeConfirmed     Boolean                   @default(false)
+  ownerApprovalConfirmed   Boolean                   @default(false)
+  legalApprovalConfirmed   Boolean                   @default(false)
+  submittedByUserId        String
+  reviewedAt               DateTime?
+  reviewedByUserId         String?
+  reviewNotes              String?                   @db.VarChar(1000)
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+
+  submissionRevision CreatorSubmissionRevision @relation(fields: [submissionRevisionId], references: [id], onDelete: Cascade)
+  submittedBy        User                      @relation("CreatorRightsReviewSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: Restrict)
+  reviewedBy         User?                     @relation("CreatorRightsReviewReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([submissionRevisionId, sequence])
+  @@index([submissionRevisionId, status, sequence])
+  @@index([status, expiryDate])
+  @@index([reviewedByUserId])
+  @@index([submittedByUserId])
 }
 
 /// Provider-neutral, single-use authorization intent metadata.
@@ -496,6 +548,7 @@ model UploadIntent {
   id                   String             @id @default(cuid())
   submissionRevisionId String
   mediaRole            CreatorMediaRole
+  territoryCode        String?            @db.VarChar(2)
   status               UploadIntentStatus @default(PENDING)
   idempotencyKey       String             @db.VarChar(128)
   maxFileSizeBytes     BigInt

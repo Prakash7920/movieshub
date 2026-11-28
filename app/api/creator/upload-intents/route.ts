@@ -23,6 +23,7 @@ const PRIVATE_HEADERS = CREATOR_PRIVATE_HEADERS;
 const createIntentSchema = z.object({
   submissionRevisionId: z.string().min(1).max(64),
   mediaRole: z.nativeEnum(CreatorMediaRole),
+  territoryCode: z.string().regex(/^[A-Z]{2}$/),
   idempotencyKey: z.string().min(16).max(128).regex(/^[A-Za-z0-9._:-]+$/),
 }).strict();
 
@@ -51,6 +52,7 @@ const intentResponseSelect = {
   id: true,
   submissionRevisionId: true,
   mediaRole: true,
+  territoryCode: true,
   status: true,
   maxFileSizeBytes: true,
   allowedMimeTypes: true,
@@ -160,16 +162,23 @@ export async function POST(request: Request) {
       );
     }
 
-    const rightsGate = await resolveCreatorUploadRightsGate(parsed.data.submissionRevisionId);
-    const result = await prisma.$transaction(async (tx) => createUploadIntentInTransaction(
-      tx,
-      {
-        creatorProfileId: creator.creatorProfile.id,
-        actorUserId: creator.user.id,
-        ...parsed.data,
-      },
-      rightsGate,
-    ), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    const result = await prisma.$transaction(async (tx) => {
+      const rightsGate = await resolveCreatorUploadRightsGate(
+        tx,
+        parsed.data.submissionRevisionId,
+        parsed.data.territoryCode,
+        parsed.data.mediaRole,
+      );
+      return createUploadIntentInTransaction(
+        tx,
+        {
+          creatorProfileId: creator.creatorProfile.id,
+          actorUserId: creator.user.id,
+          ...parsed.data,
+        },
+        rightsGate,
+      );
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     if (result.kind === "NOT_FOUND") {
       return NextResponse.json({ error: "Submission revision not found." }, { status: 404, headers: PRIVATE_HEADERS });

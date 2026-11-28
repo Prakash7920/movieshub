@@ -48,6 +48,7 @@ const uploadIntentSelect = {
   id: true,
   submissionRevisionId: true,
   mediaRole: true,
+  territoryCode: true,
   status: true,
   maxFileSizeBytes: true,
   allowedMimeTypes: true,
@@ -79,6 +80,7 @@ export async function createUploadIntentInTransaction(
     actorUserId: string;
     submissionRevisionId: string;
     mediaRole: CreatorMediaRole;
+    territoryCode: string;
     idempotencyKey: string;
   },
   rightsGate: CreatorUploadRightsGateDecision,
@@ -105,14 +107,20 @@ export async function createUploadIntentInTransaction(
     return { kind: "REVISION_NOT_APPROVED" };
   }
 
-  // Never infer rights from CreatorSubmission or revision metadata approval.
-  if (!rightsGate.allowed) {
+  // Rights must match this exact revision, territory and media role.
+  const blockedReason = rightsGate.allowed ? "RIGHTS_DECISION_SCOPE_MISMATCH" : rightsGate.reason;
+  if (
+    !rightsGate.allowed ||
+    rightsGate.submissionRevisionId !== revision.id ||
+    rightsGate.territoryCode !== input.territoryCode ||
+    rightsGate.mediaRole !== input.mediaRole
+  ) {
     await writeAdminAuditEvent(tx, {
       actorUserId: input.actorUserId,
       action: "CREATOR_UPLOAD_INTENT_BLOCKED_RIGHTS_GATE",
       resourceType: "CreatorSubmissionRevision",
       resourceId: revision.id,
-      metadata: { reason: rightsGate.reason },
+      metadata: { reason: blockedReason, territoryCode: input.territoryCode, mediaRole: input.mediaRole },
     });
     return { kind: "RIGHTS_REVIEW_REQUIRED" };
   }
@@ -131,6 +139,7 @@ export async function createUploadIntentInTransaction(
   if (existing) {
     const sameRequest =
       existing.mediaRole === input.mediaRole &&
+      existing.territoryCode === input.territoryCode &&
       existing.maxFileSizeBytes === policy.maxFileSizeBytes &&
       existing.maxDurationSeconds === policy.maxDurationSeconds &&
       JSON.stringify(existing.allowedMimeTypes) === JSON.stringify(policy.allowedMimeTypes);
@@ -167,6 +176,7 @@ export async function createUploadIntentInTransaction(
     data: {
       submissionRevisionId: revision.id,
       mediaRole: input.mediaRole,
+      territoryCode: input.territoryCode,
       idempotencyKey: input.idempotencyKey,
       maxFileSizeBytes: policy.maxFileSizeBytes,
       allowedMimeTypes: policy.allowedMimeTypes,
@@ -185,6 +195,7 @@ export async function createUploadIntentInTransaction(
     metadata: {
       submissionRevisionId: revision.id,
       mediaRole: intent.mediaRole,
+      territoryCode: intent.territoryCode,
       rightsDecisionReference: rightsGate.decisionReference,
       rightsReviewerUserId: rightsGate.reviewerUserId,
     },
