@@ -224,9 +224,20 @@ test("C3-I4 requires independent admin review and gates exact revision, role and
   assert.ok(queueData.candidateRevisions.length > 0);
   assert.ok(queueData.reviews.some(item => item.id === pending.id && item.evidenceReference === "LegalVault/NexaFilm/CREATOR-RIGHTS-001"));
 
-  await assert.rejects(prismaTest.creatorRightsReview.update({
-    where: { id: pending.id }, data: { evidenceReference: "LegalVault/NexaFilm/ALTERED" },
-  }));
+  const terminalRewrite = await asAdmin(adminReviewerId, () => decideRightsReview(request(
+    "/api/admin/creator-rights-reviews", "PATCH",
+    { id: pending.id, status: "REJECTED", reviewNotes: "Attempted terminal rewrite." },
+  )));
+  assert.ok(terminalRewrite);
+  assert.equal(terminalRewrite.status, 409);
+
+  // db push in the general integration workflow does not create custom SQL triggers.
+  // Verify the actual database immutability trigger only in the migration-applied suite.
+  if (process.env.CREATOR_RIGHTS_REVIEW_MIGRATION_TEST === "true") {
+    await assert.rejects(prismaTest.creatorRightsReview.update({
+      where: { id: pending.id }, data: { evidenceReference: "LegalVault/NexaFilm/ALTERED" },
+    }));
+  }
   const terminal = await prismaTest.creatorRightsReview.findUnique({ where: { id: pending.id }, select: { status: true, evidenceReference: true, reviewedByUserId: true } });
   assert.deepEqual(terminal, { status: "APPROVED", evidenceReference: "LegalVault/NexaFilm/CREATOR-RIGHTS-001", reviewedByUserId: adminReviewerId });
 });

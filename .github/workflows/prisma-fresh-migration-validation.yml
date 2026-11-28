@@ -109,6 +109,7 @@ jobs:
       - name: Exercise creator work/version rights-review workflow
         env:
           MOVIESHUB_E2E: "true"
+          CREATOR_RIGHTS_REVIEW_MIGRATION_TEST: "true"
           RATE_LIMIT_SECRET: ci-only-rate-limit-secret-value-with-more-than-32-characters
         run: npx tsx --test tests/creator-rights-review.integration.test.ts
 
